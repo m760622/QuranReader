@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E0E749E92F5B8FFC003C4510 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = E0E749E82F5B8FFC003C4510 /* GRDB */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		E064AF7E2F5B578900EFC619 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E0E749E92F5B8FFC003C4510 /* GRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = QuranReader;
 			packageProductDependencies = (
+				E0E749E82F5B8FFC003C4510 /* GRDB */,
 			);
 			productName = QuranReader;
 			productReference = E064AF6E2F5B578800EFC619 /* QuranReader.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = E064AF652F5B578800EFC619;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E0E749E72F5B8FFC003C4510 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E064AF6F2F5B578800EFC619 /* Products */;
 			projectDirPath = "";
@@ -615,6 +624,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E0E749E72F5B8FFC003C4510 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift.git";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E0E749E82F5B8FFC003C4510 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E0E749E72F5B8FFC003C4510 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			productName = GRDB;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E064AF662F5B578800EFC619 /* Project object */;
 }
