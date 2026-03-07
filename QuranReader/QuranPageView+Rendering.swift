@@ -350,12 +350,11 @@ extension QuranPageView {
                                     }) {
                                         let targetVerseId =
                                             viewModel.preferredVerseIdForSurahIndex(index) ?? 1
-                                        jumpToSurahSafely(index: index, verseId: targetVerseId)
-                                        if isMushafPageMode {
-                                            goToMushafVerse(
-                                                surahIndex: index,
-                                                verseId: targetVerseId
-                                            )
+                                        if let request = buildVerseNavigationRequest(
+                                            surahIndex: index,
+                                            verseId: targetVerseId
+                                        ) {
+                                            performVerseNavigation(request)
                                         }
                                         lightHaptic()
                                     }
@@ -621,12 +620,12 @@ extension QuranPageView {
             secondaryTextColor: secondaryTextColor,
             isNightMode: viewModel.isNightMode,
             verseHighlightColor: verseHighlightColor,
-            searchHighlightQuery: activeSearchHighlightQuery,
-            searchHighlightSurahId: activeSearchHighlightSurahId,
-            searchHighlightMode: activeSearchHighlightMode,
-            searchHighlightVerseId: activeSearchHighlightVerseId,
-            preciseScrollSurahId: pendingMushafTargetSurahId,
-            preciseScrollVerseId: pendingMushafTargetVerseId,
+            searchHighlightQuery: readerNavigationState.highlight?.query ?? "",
+            searchHighlightSurahId: readerNavigationState.highlight?.surahId,
+            searchHighlightMode: readerNavigationState.highlight?.matchMode ?? .normalized,
+            searchHighlightVerseId: readerNavigationState.highlight?.verseId,
+            preciseScrollSurahId: readerNavigationState.targetSurahId,
+            preciseScrollVerseId: readerNavigationState.targetVerseId,
             preciseScrollRequestID: mushafPreciseScrollRequestID,
             customFontName: customFontName,
             systemDesign: readerSystemFontDesign,
@@ -711,10 +710,10 @@ extension QuranPageView {
             scrollSpace: scrollSpace,
             onRegisterAnchor: registerMushafPageAnchor,
             onPreciseScrollCompleted: { surahId, verseId in
-                guard pendingMushafTargetSurahId == surahId, pendingMushafTargetVerseId == verseId
+                guard readerNavigationState.targetSurahId == surahId,
+                    readerNavigationState.targetVerseId == verseId
                 else { return }
-                pendingMushafTargetSurahId = nil
-                pendingMushafTargetVerseId = nil
+                setPendingMushafNavigationTarget(surahId: nil, verseId: nil)
             }
         )
     }

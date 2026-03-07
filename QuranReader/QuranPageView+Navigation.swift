@@ -264,8 +264,10 @@ extension QuranPageView {
             if viewModel.currentSurahIndex != surahIndex {
                 self.viewModel.currentSurahIndex = surahIndex
             }
-            if let targetVerseId = pendingMushafTargetVerseId,
+            if let targetSurahId = readerNavigationState.targetSurahId,
+                let targetVerseId = readerNavigationState.targetVerseId,
                 let targetSurah = viewModel.surahs[safe: viewModel.currentSurahIndex],
+                targetSurah.id == targetSurahId,
                 targetSurah.verses.contains(where: { $0.id == targetVerseId && $0.page == page })
             {
                 self.viewModel.updateLastReadVerse(targetVerseId)

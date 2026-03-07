@@ -119,6 +119,26 @@ enum ReaderMode: String, CaseIterable, Identifiable {
     }
 }
 
+struct ReaderVerseHighlightPayload: Equatable {
+    let surahId: Int
+    let verseId: Int
+    let query: String
+    let matchMode: QuranPageViewModel.ArabicSearchMatchMode
+}
+
+struct ReaderVerseNavigationRequest: Equatable {
+    let surahIndex: Int
+    let surahId: Int
+    let verseId: Int
+    let highlight: ReaderVerseHighlightPayload?
+}
+
+struct ReaderNavigationState: Equatable {
+    var targetSurahId: Int?
+    var targetVerseId: Int?
+    var highlight: ReaderVerseHighlightPayload?
+}
+
 // MARK: - Helper Structs
 struct ReaderCustomFontOption: Identifiable, Hashable {
     let postScriptName: String

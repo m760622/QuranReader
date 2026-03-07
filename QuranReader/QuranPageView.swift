@@ -198,12 +198,7 @@ struct QuranPageView: View {
     @State var searchResults: [QuranSearchResult] = []
     @State var searchDebounceTask: Task<Void, Never>?
     @State var mushafSearchRange: MushafSearchRange = .all
-    @State var activeSearchHighlightQuery = ""
-    @State var activeSearchHighlightSurahId: Int?
-    @State var activeSearchHighlightMode: QuranPageViewModel.ArabicSearchMatchMode = .normalized
-    @State var activeSearchHighlightVerseId: Int?
-    @State var pendingMushafTargetSurahId: Int?
-    @State var pendingMushafTargetVerseId: Int?
+    @State var readerNavigationState = ReaderNavigationState()
     @State var mushafPreciseScrollRequestID = 0
     @AppStorage("searchHistory") var searchHistoryData: Data = Data()
     @State var searchHistory: [String] = []
@@ -863,8 +858,6 @@ struct QuranPageView: View {
 
             let fromPage = currentStandardPage ?? storedMushafPageNumber
             let shouldAnimateJump = abs(fromPage - page) <= 6
-            readerDebug(
-                "jump request page:\(page) from:\(fromPage) animate:\(shouldAnimateJump)")
             animatePendingMushafJump = shouldAnimateJump
             if shouldAnimateJump {
                 withAnimation(.easeInOut(duration: 0.25)) {
@@ -1354,8 +1347,7 @@ struct QuranPageView: View {
             return
         }
         suppressVerseContextMenusTemporarily()
-        pendingMushafTargetSurahId = surahId
-        pendingMushafTargetVerseId = verseId
+        setPendingMushafNavigationTarget(surahId: surahId, verseId: verseId)
         mushafPreciseScrollRequestID &+= 1
         viewModel.updateLastReadVerse(verseId)
         pendingMushafScrollTargetChunkId = mushafChunkIdForVerse(

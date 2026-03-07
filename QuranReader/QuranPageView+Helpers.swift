@@ -13,6 +13,39 @@ extension QuranPageView {
         "VERSE_\(verseId)"
     }
 
+    func setActiveVerseHighlight(_ highlight: ReaderVerseHighlightPayload?) {
+        readerNavigationState.highlight = highlight
+    }
+
+    func setPendingMushafNavigationTarget(surahId: Int?, verseId: Int?) {
+        readerNavigationState.targetSurahId = surahId
+        readerNavigationState.targetVerseId = verseId
+    }
+
+    func buildVerseNavigationRequest(
+        surahIndex: Int,
+        verseId: Int,
+        highlight: ReaderVerseHighlightPayload? = nil
+    ) -> ReaderVerseNavigationRequest? {
+        guard let surah = viewModel.surahs[safe: surahIndex] else { return nil }
+        return ReaderVerseNavigationRequest(
+            surahIndex: surahIndex,
+            surahId: surah.id,
+            verseId: verseId,
+            highlight: highlight
+        )
+    }
+
+    func performVerseNavigation(_ request: ReaderVerseNavigationRequest) {
+        lastInteractiveTapAt = Date()
+        if isMushafPageMode {
+            goToMushafVerse(surahIndex: request.surahIndex, verseId: request.verseId)
+        } else {
+            jumpToSurahSafely(index: request.surahIndex, verseId: request.verseId)
+        }
+        setActiveVerseHighlight(request.highlight)
+    }
+
     // MARK: - View Modifiers (Refactored to avoid "Expression too complex")
 
     struct ReaderBackgroundModifier: ViewModifier {

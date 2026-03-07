@@ -10,6 +10,7 @@ import SwiftUI
 
 // MARK: - Sub-Views
 extension QuranPageView {
+    static let searchMatchScrollAttribute = NSAttributedString.Key("ReaderSearchMatch")
 
     struct ActionButton: View {
         let icon: String
@@ -351,6 +352,13 @@ extension QuranPageView {
             guard chunk.contains(where: { $0.id == preciseScrollVerseId }) else { return nil }
             return verseLinkURL(forVerseId: preciseScrollVerseId)
         }
+        var prefersHighlightedPreciseScroll: Bool {
+            let trimmedQuery = searchHighlightQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedQuery.isEmpty else { return false }
+            guard searchHighlightSurahId == surahId else { return false }
+            guard let preciseScrollVerseId else { return false }
+            return searchHighlightVerseId == preciseScrollVerseId
+        }
 
         var body: some View {
             VStack(alignment: .leading, spacing: 0) {
@@ -361,6 +369,7 @@ extension QuranPageView {
                     contextMenuEnabled: contextMenuEnabled,
                     preciseScrollTargetURL: preciseScrollTargetURL,
                     preciseScrollRequestID: preciseScrollRequestID,
+                    preferHighlightedRangeForPreciseScroll: prefersHighlightedPreciseScroll,
                     onPreciseScrollCompleted: {
                         guard let preciseScrollVerseId else { return }
                         onPreciseScrollCompleted?(surahId, preciseScrollVerseId)
@@ -614,6 +623,11 @@ extension QuranPageView {
                         value: searchMatchHighlightColor,
                         range: nsRange
                     )
+                    attributedText.addAttribute(
+                        QuranPageView.searchMatchScrollAttribute,
+                        value: true,
+                        range: nsRange
+                    )
                 }
             }
         }
@@ -838,6 +852,7 @@ extension QuranPageView {
             let contextMenuEnabled: Bool
             let preciseScrollTargetURL: URL?
             let preciseScrollRequestID: Int
+            let preferHighlightedRangeForPreciseScroll: Bool
             let onPreciseScrollCompleted: (() -> Void)?
             let onTapURL: (URL) -> Void
             let onLongPressURL: (URL) -> Void
@@ -846,12 +861,19 @@ extension QuranPageView {
                 Coordinator(
                     onTapURL: onTapURL,
                     onLongPressURL: onLongPressURL,
+                    preferHighlightedRangeForPreciseScroll: preferHighlightedRangeForPreciseScroll,
                     onPreciseScrollCompleted: onPreciseScrollCompleted
                 )
             }
 
             func makeUIView(context: Context) -> UITextView {
-                let textView = UITextView()
+                let textView: UITextView
+                if #available(iOS 16.0, *) {
+                    // We rely on NSLayoutManager APIs for precise verse targeting.
+                    textView = UITextView(usingTextLayoutManager: false)
+                } else {
+                    textView = UITextView()
+                }
                 textView.isEditable = false
                 textView.isSelectable = false
                 textView.isScrollEnabled = false
@@ -901,6 +923,8 @@ extension QuranPageView {
             func updateUIView(_ uiView: UITextView, context: Context) {
                 context.coordinator.onTapURL = onTapURL
                 context.coordinator.onLongPressURL = onLongPressURL
+                context.coordinator.preferHighlightedRangeForPreciseScroll =
+                    preferHighlightedRangeForPreciseScroll
                 context.coordinator.onPreciseScrollCompleted = onPreciseScrollCompleted
                 context.coordinator.longPressGesture?.isEnabled = contextMenuEnabled
                 context.coordinator.preciseScrollTargetURL = preciseScrollTargetURL
@@ -976,17 +1000,22 @@ extension QuranPageView {
                 weak var longPressGesture: UILongPressGestureRecognizer?
                 var onTapURL: (URL) -> Void
                 var onLongPressURL: (URL) -> Void
+                var preferHighlightedRangeForPreciseScroll: Bool
                 var onPreciseScrollCompleted: (() -> Void)?
                 var preciseScrollTargetURL: URL?
                 var lastPreciseScrollRequestID = 0
+                var preciseScrollRetryCount = 0
 
                 init(
                     onTapURL: @escaping (URL) -> Void,
                     onLongPressURL: @escaping (URL) -> Void,
+                    preferHighlightedRangeForPreciseScroll: Bool,
                     onPreciseScrollCompleted: (() -> Void)?
                 ) {
                     self.onTapURL = onTapURL
                     self.onLongPressURL = onLongPressURL
+                    self.preferHighlightedRangeForPreciseScroll =
+                        preferHighlightedRangeForPreciseScroll
                     self.onPreciseScrollCompleted = onPreciseScrollCompleted
                 }
 
@@ -996,9 +1025,15 @@ extension QuranPageView {
                     guard let scrollView = containingReaderScrollView(startingAt: textView) else {
                         return
                     }
-                    guard let targetRange = range(of: targetURL, in: textView.attributedText) else {
+                    guard
+                        let targetSelection = preferredPreciseScrollSelection(
+                            in: textView.attributedText,
+                            fallbackURL: targetURL
+                        )
+                    else {
                         return
                     }
+                    let targetRange = targetSelection.range
 
                     textView.layoutManager.ensureLayout(for: textView.textContainer)
                     let glyphRange = textView.layoutManager.glyphRange(
@@ -1019,6 +1054,7 @@ extension QuranPageView {
                     )
 
                     lastPreciseScrollRequestID = requestID
+                    preciseScrollRetryCount = 0
                     DispatchQueue.main.async {
                         scrollView.setContentOffset(
                             CGPoint(x: scrollView.contentOffset.x, y: targetOffsetY),
@@ -1030,8 +1066,12 @@ extension QuranPageView {
                         guard self.lastPreciseScrollRequestID == requestID else { return }
                         guard let textView = self.textView,
                             let scrollView = self.containingReaderScrollView(startingAt: textView),
-                            let targetRange = self.range(of: targetURL, in: textView.attributedText)
+                            let targetSelection = self.preferredPreciseScrollSelection(
+                                in: textView.attributedText,
+                                fallbackURL: targetURL
+                            )
                         else { return }
+                        let targetRange = targetSelection.range
 
                         textView.layoutManager.ensureLayout(for: textView.textContainer)
                         let glyphRange = textView.layoutManager.glyphRange(
@@ -1054,8 +1094,117 @@ extension QuranPageView {
                             CGPoint(x: scrollView.contentOffset.x, y: refinedOffsetY),
                             animated: false
                         )
-                        self.onPreciseScrollCompleted?()
+                        if self.isRangeVisible(
+                            targetRange,
+                            in: textView,
+                            scrollView: scrollView
+                        ), targetSelection.usedHighlightedRange
+                            || !self.preferHighlightedRangeForPreciseScroll
+                        {
+                            self.onPreciseScrollCompleted?()
+                        } else {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) { [weak self] in
+                                self?.retryHighlightedPreciseScroll(
+                                    requestID: requestID,
+                                    fallbackURL: targetURL
+                                )
+                            }
+                        }
                     }
+                }
+
+                func preferredPreciseScrollSelection(
+                    in attributedText: NSAttributedString,
+                    fallbackURL: URL
+                ) -> (range: NSRange, usedHighlightedRange: Bool)? {
+                    if let highlightedRange = firstRange(
+                        for: QuranPageView.searchMatchScrollAttribute,
+                        in: attributedText
+                    ) {
+                        return (highlightedRange, true)
+                    }
+                    guard let fallbackRange = range(of: fallbackURL, in: attributedText) else {
+                        return nil
+                    }
+                    return (fallbackRange, false)
+                }
+
+                func retryHighlightedPreciseScroll(requestID: Int, fallbackURL: URL) {
+                    guard lastPreciseScrollRequestID == requestID else { return }
+                    guard preciseScrollRetryCount < 6 else { return }
+                    guard preferHighlightedRangeForPreciseScroll else {
+                        onPreciseScrollCompleted?()
+                        return
+                    }
+                    guard let textView, let scrollView = containingReaderScrollView(startingAt: textView)
+                    else { return }
+                    guard let targetSelection = preferredPreciseScrollSelection(
+                        in: textView.attributedText,
+                        fallbackURL: fallbackURL
+                    ) else { return }
+                    guard targetSelection.usedHighlightedRange else { return }
+
+                    textView.layoutManager.ensureLayout(for: textView.textContainer)
+                    let glyphRange = textView.layoutManager.glyphRange(
+                        forCharacterRange: targetSelection.range,
+                        actualCharacterRange: nil
+                    )
+                    var targetRect = textView.layoutManager.boundingRect(
+                        forGlyphRange: glyphRange,
+                        in: textView.textContainer
+                    )
+                    targetRect.origin.x += textView.textContainerInset.left
+                    targetRect.origin.y += textView.textContainerInset.top
+
+                    let targetRectInScrollView = textView.convert(targetRect, to: scrollView)
+                    let targetOffsetY = max(
+                        -scrollView.adjustedContentInset.top,
+                        targetRectInScrollView.minY - 18
+                    )
+                    preciseScrollRetryCount += 1
+                    scrollView.setContentOffset(
+                        CGPoint(x: scrollView.contentOffset.x, y: targetOffsetY),
+                        animated: false
+                    )
+                    if isRangeVisible(targetSelection.range, in: textView, scrollView: scrollView) {
+                        onPreciseScrollCompleted?()
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+                            self?.retryHighlightedPreciseScroll(
+                                requestID: requestID,
+                                fallbackURL: fallbackURL
+                            )
+                        }
+                    }
+                }
+
+                func isRangeVisible(
+                    _ range: NSRange,
+                    in textView: UITextView,
+                    scrollView: UIScrollView
+                ) -> Bool {
+                    textView.layoutManager.ensureLayout(for: textView.textContainer)
+                    let glyphRange = textView.layoutManager.glyphRange(
+                        forCharacterRange: range,
+                        actualCharacterRange: nil
+                    )
+                    var targetRect = textView.layoutManager.boundingRect(
+                        forGlyphRange: glyphRange,
+                        in: textView.textContainer
+                    )
+                    targetRect.origin.x += textView.textContainerInset.left
+                    targetRect.origin.y += textView.textContainerInset.top
+
+                    let rectInScrollView = textView.convert(targetRect, to: scrollView)
+                    let visibleBoundsRect = CGRect(
+                        x: 0,
+                        y: scrollView.adjustedContentInset.top,
+                        width: scrollView.bounds.width,
+                        height: scrollView.bounds.height
+                            - scrollView.adjustedContentInset.top
+                            - scrollView.adjustedContentInset.bottom
+                    )
+                    return visibleBoundsRect.intersects(rectInScrollView.insetBy(dx: 0, dy: -8))
                 }
 
                 func range(of url: URL, in attributedText: NSAttributedString) -> NSRange? {
@@ -1064,6 +1213,22 @@ extension QuranPageView {
 
                     attributedText.enumerateAttribute(.link, in: fullRange) { value, range, stop in
                         guard let linkedURL = value as? URL, linkedURL == url else { return }
+                        foundRange = range
+                        stop.pointee = true
+                    }
+
+                    return foundRange
+                }
+
+                func firstRange(
+                    for key: NSAttributedString.Key,
+                    in attributedText: NSAttributedString
+                ) -> NSRange? {
+                    let fullRange = NSRange(location: 0, length: attributedText.length)
+                    var foundRange: NSRange?
+
+                    attributedText.enumerateAttribute(key, in: fullRange) { value, range, stop in
+                        guard value != nil else { return }
                         foundRange = range
                         stop.pointee = true
                     }

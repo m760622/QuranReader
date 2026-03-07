@@ -102,10 +102,8 @@ extension QuranPageView {
                     Button {
                         recordSearchHistory(query: searchText)
                         goToMushafPage(page)
-                        activeSearchHighlightQuery = ""
-                        activeSearchHighlightSurahId = nil
-                        activeSearchHighlightMode = .normalized
-                        activeSearchHighlightVerseId = nil
+                        setActiveVerseHighlight(nil)
+                        setPendingMushafNavigationTarget(surahId: nil, verseId: nil)
                         showSearch = false
                         searchText = ""
                         searchResults = []
@@ -209,17 +207,19 @@ extension QuranPageView {
                             let submittedQuery = searchText.trimmingCharacters(
                                 in: .whitespacesAndNewlines)
                             recordSearchHistory(query: searchText)
-                            lastInteractiveTapAt = Date()
-                            if isMushafPageMode {
-                                goToMushafVerse(
-                                    surahIndex: result.surahIndex, verseId: result.verseId)
-                            } else {
-                                jumpToSurahSafely(index: result.surahIndex, verseId: result.verseId)
+                            let highlight = ReaderVerseHighlightPayload(
+                                surahId: result.surahId,
+                                verseId: result.verseId,
+                                query: submittedQuery,
+                                matchMode: arabicSearchMatchMode
+                            )
+                            if let request = buildVerseNavigationRequest(
+                                surahIndex: result.surahIndex,
+                                verseId: result.verseId,
+                                highlight: highlight
+                            ) {
+                                performVerseNavigation(request)
                             }
-                            activeSearchHighlightQuery = submittedQuery
-                            activeSearchHighlightSurahId = result.surahId
-                            activeSearchHighlightMode = arabicSearchMatchMode
-                            activeSearchHighlightVerseId = result.verseId
                             showSearch = false
                             searchText = ""
                             searchResults = []
@@ -505,15 +505,11 @@ extension QuranPageView {
                         let resumeVerseId =
                             viewModel.preferredVerseIdForSurahIndex(viewModel.currentSurahIndex)
                             ?? viewModel.lastReadVerseId
-                        jumpToSurahSafely(
-                            index: viewModel.currentSurahIndex,
+                        if let request = buildVerseNavigationRequest(
+                            surahIndex: viewModel.currentSurahIndex,
                             verseId: resumeVerseId
-                        )
-                        if isMushafPageMode {
-                            goToMushafVerse(
-                                surahIndex: viewModel.currentSurahIndex,
-                                verseId: resumeVerseId
-                            )
+                        ) {
+                            performVerseNavigation(request)
                         }
                         showSurahList = false
                     } label: {
@@ -543,21 +539,21 @@ extension QuranPageView {
                         let targetVerseId =
                             shouldResumeSavedVerse
                             ? (viewModel.preferredVerseIdForSurahIndex(index) ?? 1) : 1
-                        lastInteractiveTapAt = Date()
-                        if isMushafPageMode {
-                            goToMushafVerse(surahIndex: index, verseId: targetVerseId)
-                        } else {
-                            jumpToSurahSafely(
-                                index: index,
-                                verseId: shouldResumeSavedVerse ? targetVerseId : nil,
-                                preferSavedVerse: shouldResumeSavedVerse
-                            )
+                        let highlight: ReaderVerseHighlightPayload? =
+                            shouldResumeSavedVerse
+                            ? ReaderVerseHighlightPayload(
+                                surahId: surah.id,
+                                verseId: targetVerseId,
+                                query: "",
+                                matchMode: .normalized
+                            ) : nil
+                        if let request = buildVerseNavigationRequest(
+                            surahIndex: index,
+                            verseId: targetVerseId,
+                            highlight: highlight
+                        ) {
+                            performVerseNavigation(request)
                         }
-                        activeSearchHighlightQuery = ""
-                        activeSearchHighlightSurahId = shouldResumeSavedVerse ? surah.id : nil
-                        activeSearchHighlightMode = .normalized
-                        activeSearchHighlightVerseId = shouldResumeSavedVerse
-                            ? targetVerseId : nil
                         showSurahList = false
                         lightHaptic()
                     } label: {
@@ -687,16 +683,19 @@ extension QuranPageView {
         NavigationView {
             List(verseBookmarkRows) { row in
                 Button {
-                    lastInteractiveTapAt = Date()
-                    if isMushafPageMode {
-                        goToMushafVerse(surahIndex: row.surahIndex, verseId: row.verse.id)
-                    } else {
-                        jumpToSurahSafely(index: row.surahIndex, verseId: row.verse.id)
+                    let highlight = ReaderVerseHighlightPayload(
+                        surahId: row.surah.id,
+                        verseId: row.verse.id,
+                        query: row.verse.text,
+                        matchMode: .exact
+                    )
+                    if let request = buildVerseNavigationRequest(
+                        surahIndex: row.surahIndex,
+                        verseId: row.verse.id,
+                        highlight: highlight
+                    ) {
+                        performVerseNavigation(request)
                     }
-                    activeSearchHighlightQuery = row.verse.text
-                    activeSearchHighlightSurahId = row.surah.id
-                    activeSearchHighlightMode = .exact
-                    activeSearchHighlightVerseId = row.verse.id
                     showVerseBookmarksList = false
                     lightHaptic()
                 } label: {
