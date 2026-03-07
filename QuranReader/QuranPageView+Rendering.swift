@@ -607,7 +607,7 @@ extension QuranPageView {
         }
 
         let customFontName = resolveCustomFontName()
-        let chunkSize = 50  // High enough to render a full Mushaf page in a single chunk
+        let chunkSize = connectedVerseChunkSize()
 
         return ConnectedVersesView(
             surahId: surah.id,
@@ -621,6 +621,8 @@ extension QuranPageView {
             secondaryTextColor: secondaryTextColor,
             isNightMode: viewModel.isNightMode,
             verseHighlightColor: verseHighlightColor,
+            searchHighlightQuery: activeSearchHighlightQuery,
+            searchHighlightVerseId: activeSearchHighlightVerseId,
             customFontName: customFontName,
             systemDesign: readerSystemFontDesign,
             fontWeight: readerFontWeight,

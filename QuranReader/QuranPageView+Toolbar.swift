@@ -121,6 +121,7 @@ extension QuranPageView {
 
                     // Search
                     Button {
+                        searchScope = .quran
                         showSearch = true
                         lightHaptic()
                     } label: {
@@ -318,6 +319,7 @@ extension QuranPageView {
 
             // Search
             Button {
+                searchScope = .quran
                 showSearch = true
                 lightHaptic()
             } label: {

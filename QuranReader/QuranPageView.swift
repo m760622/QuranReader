@@ -193,11 +193,14 @@ struct QuranPageView: View {
     @State var showSearch = false
     @State var showVerseBookmarksList = false
     @State var searchText = ""
-    @State var searchScope: QuranPageViewModel.SearchScope = .all
+    @State var searchScope: QuranPageViewModel.SearchScope = .quran
     @State var arabicSearchMatchMode: QuranPageViewModel.ArabicSearchMatchMode = .normalized
     @State var searchResults: [QuranSearchResult] = []
     @State var searchDebounceTask: Task<Void, Never>?
     @State var mushafSearchRange: MushafSearchRange = .all
+    @State var activeSearchHighlightQuery = ""
+    @State var activeSearchHighlightVerseId: Int?
+    @State var pendingMushafTargetVerseId: Int?
     @AppStorage("searchHistory") var searchHistoryData: Data = Data()
     @State var searchHistory: [String] = []
     @State var showClearSearchHistoryConfirmation = false
@@ -1322,12 +1325,16 @@ struct QuranPageView: View {
         return mushafPageForVerse(surahIndex: surahIndex, verseId: verseId)
     }
 
+    func connectedVerseChunkSize() -> Int {
+        50
+    }
+
     func mushafChunkIdForVerse(surahId: Int, page: Int, verseId: Int) -> String? {
         guard let sections = mushafIndexByPage[page] else { return nil }
         guard let section = sections.first(where: { $0.surah.id == surahId }) else { return nil }
         let verses = section.verses
         guard let idx = verses.firstIndex(where: { $0.id == verseId }) else { return nil }
-        let chunkSize = isMushafPageMode ? 6 : 10
+        let chunkSize = connectedVerseChunkSize()
         let start = (idx / chunkSize) * chunkSize
         guard verses.indices.contains(start) else { return nil }
         let chunkFirstVerseId = verses[start].id
@@ -1341,6 +1348,8 @@ struct QuranPageView: View {
             return
         }
         suppressVerseContextMenusTemporarily()
+        pendingMushafTargetVerseId = verseId
+        viewModel.updateLastReadVerse(verseId)
         pendingMushafScrollTargetChunkId = mushafChunkIdForVerse(
             surahId: surahId,
             page: page,

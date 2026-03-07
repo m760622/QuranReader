@@ -52,6 +52,8 @@ extension QuranPageView {
         let secondaryTextColor: Color
         let isNightMode: Bool
         let verseHighlightColor: Color
+        let searchHighlightQuery: String
+        let searchHighlightVerseId: Int?
         let customFontName: String?
         let systemDesign: Font.Design
         let fontWeight: ReaderFontWeightOption
@@ -155,6 +157,8 @@ extension QuranPageView {
                             secondaryTextColor: secondaryTextColor,
                             isNightMode: isNightMode,
                             verseHighlightColor: verseHighlightColor,
+                            searchHighlightQuery: searchHighlightQuery,
+                            searchHighlightVerseId: searchHighlightVerseId,
                             customFontName: customFontName,
                             systemDesign: systemDesign,
                             fontWeight: fontWeight,
@@ -285,6 +289,8 @@ extension QuranPageView {
         let secondaryTextColor: Color
         let isNightMode: Bool
         let verseHighlightColor: Color
+        let searchHighlightQuery: String
+        let searchHighlightVerseId: Int?
         let customFontName: String?
         let systemDesign: Font.Design
         let fontWeight: ReaderFontWeightOption
@@ -318,6 +324,9 @@ extension QuranPageView {
         }
         var transientLongPressHighlightColor: Color {
             verseHighlightColor.opacity(isNightMode ? 0.72 : 0.58)
+        }
+        var searchMatchHighlightColor: UIColor {
+            UIColor(isNightMode ? Color.yellow.opacity(0.34) : Color.yellow.opacity(0.28))
         }
 
         var body: some View {
@@ -530,7 +539,12 @@ extension QuranPageView {
                     verseAttributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
                     verseAttributes[.underlineColor] = UIColor(longPressUnderlineColor)
                 }
-                mutable.append(NSAttributedString(string: verse.text, attributes: verseAttributes))
+                let verseAttributed = NSMutableAttributedString(
+                    string: verse.text,
+                    attributes: verseAttributes
+                )
+                applySearchHighlightIfNeeded(to: verseAttributed, verse: verse)
+                mutable.append(verseAttributed)
 
                 var markerAttributes: [NSAttributedString.Key: Any] = [
                     .font: markerUIFont,
@@ -551,6 +565,35 @@ extension QuranPageView {
                 )
             }
             return mutable
+        }
+
+        func applySearchHighlightIfNeeded(
+            to attributedText: NSMutableAttributedString,
+            verse: Verse
+        ) {
+            let trimmedQuery = searchHighlightQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard verse.id == searchHighlightVerseId, trimmedQuery.count >= 2 else { return }
+
+            let nsText = attributedText.string as NSString
+            var searchRange = NSRange(location: 0, length: nsText.length)
+
+            while searchRange.location < nsText.length {
+                let foundRange = nsText.range(
+                    of: trimmedQuery,
+                    options: [],
+                    range: searchRange
+                )
+                guard foundRange.location != NSNotFound else { break }
+                attributedText.addAttribute(
+                    .backgroundColor,
+                    value: searchMatchHighlightColor,
+                    range: foundRange
+                )
+
+                let nextLocation = foundRange.location + max(foundRange.length, 1)
+                guard nextLocation < nsText.length else { break }
+                searchRange = NSRange(location: nextLocation, length: nsText.length - nextLocation)
+            }
         }
 
         @ViewBuilder
