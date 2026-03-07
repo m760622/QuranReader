@@ -103,6 +103,8 @@ extension QuranPageView {
                         recordSearchHistory(query: searchText)
                         goToMushafPage(page)
                         activeSearchHighlightQuery = ""
+                        activeSearchHighlightSurahId = nil
+                        activeSearchHighlightMode = .normalized
                         activeSearchHighlightVerseId = nil
                         showSearch = false
                         searchText = ""
@@ -208,12 +210,15 @@ extension QuranPageView {
                                 in: .whitespacesAndNewlines)
                             recordSearchHistory(query: searchText)
                             lastInteractiveTapAt = Date()
-                            jumpToSurahSafely(index: result.surahIndex, verseId: result.verseId)
                             if isMushafPageMode {
                                 goToMushafVerse(
                                     surahIndex: result.surahIndex, verseId: result.verseId)
+                            } else {
+                                jumpToSurahSafely(index: result.surahIndex, verseId: result.verseId)
                             }
                             activeSearchHighlightQuery = submittedQuery
+                            activeSearchHighlightSurahId = result.surahId
+                            activeSearchHighlightMode = arabicSearchMatchMode
                             activeSearchHighlightVerseId = result.verseId
                             showSearch = false
                             searchText = ""
@@ -539,15 +544,18 @@ extension QuranPageView {
                             shouldResumeSavedVerse
                             ? (viewModel.preferredVerseIdForSurahIndex(index) ?? 1) : 1
                         lastInteractiveTapAt = Date()
-                        jumpToSurahSafely(
-                            index: index,
-                            verseId: shouldResumeSavedVerse ? targetVerseId : nil,
-                            preferSavedVerse: shouldResumeSavedVerse
-                        )
                         if isMushafPageMode {
                             goToMushafVerse(surahIndex: index, verseId: targetVerseId)
+                        } else {
+                            jumpToSurahSafely(
+                                index: index,
+                                verseId: shouldResumeSavedVerse ? targetVerseId : nil,
+                                preferSavedVerse: shouldResumeSavedVerse
+                            )
                         }
                         activeSearchHighlightQuery = ""
+                        activeSearchHighlightSurahId = shouldResumeSavedVerse ? surah.id : nil
+                        activeSearchHighlightMode = .normalized
                         activeSearchHighlightVerseId = shouldResumeSavedVerse
                             ? targetVerseId : nil
                         showSurahList = false
@@ -680,11 +688,14 @@ extension QuranPageView {
             List(verseBookmarkRows) { row in
                 Button {
                     lastInteractiveTapAt = Date()
-                    jumpToSurahSafely(index: row.surahIndex, verseId: row.verse.id)
                     if isMushafPageMode {
                         goToMushafVerse(surahIndex: row.surahIndex, verseId: row.verse.id)
+                    } else {
+                        jumpToSurahSafely(index: row.surahIndex, verseId: row.verse.id)
                     }
                     activeSearchHighlightQuery = row.verse.text
+                    activeSearchHighlightSurahId = row.surah.id
+                    activeSearchHighlightMode = .exact
                     activeSearchHighlightVerseId = row.verse.id
                     showVerseBookmarksList = false
                     lightHaptic()

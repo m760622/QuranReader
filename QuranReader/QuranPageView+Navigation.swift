@@ -269,7 +269,6 @@ extension QuranPageView {
                 targetSurah.verses.contains(where: { $0.id == targetVerseId && $0.page == page })
             {
                 self.viewModel.updateLastReadVerse(targetVerseId)
-                pendingMushafTargetVerseId = nil
             } else if let verseId = firstSection.verses.first?.id {
                 let recentlyTappedVerse = Date().timeIntervalSince(lastInteractiveTapAt) < 0.55
                 if !recentlyTappedVerse {

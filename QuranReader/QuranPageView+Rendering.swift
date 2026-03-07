@@ -622,7 +622,12 @@ extension QuranPageView {
             isNightMode: viewModel.isNightMode,
             verseHighlightColor: verseHighlightColor,
             searchHighlightQuery: activeSearchHighlightQuery,
+            searchHighlightSurahId: activeSearchHighlightSurahId,
+            searchHighlightMode: activeSearchHighlightMode,
             searchHighlightVerseId: activeSearchHighlightVerseId,
+            preciseScrollSurahId: pendingMushafTargetSurahId,
+            preciseScrollVerseId: pendingMushafTargetVerseId,
+            preciseScrollRequestID: mushafPreciseScrollRequestID,
             customFontName: customFontName,
             systemDesign: readerSystemFontDesign,
             fontWeight: readerFontWeight,
@@ -704,7 +709,13 @@ extension QuranPageView {
             },
             onPageChange: onPageChange,
             scrollSpace: scrollSpace,
-            onRegisterAnchor: registerMushafPageAnchor
+            onRegisterAnchor: registerMushafPageAnchor,
+            onPreciseScrollCompleted: { surahId, verseId in
+                guard pendingMushafTargetSurahId == surahId, pendingMushafTargetVerseId == verseId
+                else { return }
+                pendingMushafTargetSurahId = nil
+                pendingMushafTargetVerseId = nil
+            }
         )
     }
 

@@ -53,7 +53,12 @@ extension QuranPageView {
         let isNightMode: Bool
         let verseHighlightColor: Color
         let searchHighlightQuery: String
+        let searchHighlightSurahId: Int?
+        let searchHighlightMode: QuranPageViewModel.ArabicSearchMatchMode
         let searchHighlightVerseId: Int?
+        let preciseScrollSurahId: Int?
+        let preciseScrollVerseId: Int?
+        let preciseScrollRequestID: Int
         let customFontName: String?
         let systemDesign: Font.Design
         let fontWeight: ReaderFontWeightOption
@@ -73,6 +78,7 @@ extension QuranPageView {
         let onPageChange: ((Int) -> Void)?
         let scrollSpace: String?
         let onRegisterAnchor: ((Int, CGFloat) -> Void)?
+        let onPreciseScrollCompleted: ((Int, Int) -> Void)?
 
         // Group verses by their page number, preserving order
         // Optimization: Pre-calculating this more efficiently
@@ -158,7 +164,12 @@ extension QuranPageView {
                             isNightMode: isNightMode,
                             verseHighlightColor: verseHighlightColor,
                             searchHighlightQuery: searchHighlightQuery,
+                            searchHighlightSurahId: searchHighlightSurahId,
+                            searchHighlightMode: searchHighlightMode,
                             searchHighlightVerseId: searchHighlightVerseId,
+                            preciseScrollSurahId: preciseScrollSurahId,
+                            preciseScrollVerseId: preciseScrollVerseId,
+                            preciseScrollRequestID: preciseScrollRequestID,
                             customFontName: customFontName,
                             systemDesign: systemDesign,
                             fontWeight: fontWeight,
@@ -170,6 +181,7 @@ extension QuranPageView {
                             onToggleBookmark: onToggleBookmark,
                             onCopyVerse: onCopyVerse,
                             onShareVerse: onShareVerse,
+                            onPreciseScrollCompleted: onPreciseScrollCompleted,
                             onTap: { verse in onVerseTap(verse) }
                         )
                         .id("CHUNK_S\(surahId)_V\(chunk.first?.id ?? 0)")
@@ -290,7 +302,12 @@ extension QuranPageView {
         let isNightMode: Bool
         let verseHighlightColor: Color
         let searchHighlightQuery: String
+        let searchHighlightSurahId: Int?
+        let searchHighlightMode: QuranPageViewModel.ArabicSearchMatchMode
         let searchHighlightVerseId: Int?
+        let preciseScrollSurahId: Int?
+        let preciseScrollVerseId: Int?
+        let preciseScrollRequestID: Int
         let customFontName: String?
         let systemDesign: Font.Design
         let fontWeight: ReaderFontWeightOption
@@ -302,6 +319,7 @@ extension QuranPageView {
         let onToggleBookmark: (Verse) -> Void
         let onCopyVerse: (Verse) -> Void
         let onShareVerse: (Verse) -> Void
+        let onPreciseScrollCompleted: ((Int, Int) -> Void)?
         let onTap: (Verse) -> Void
         @State var selectedVerseForMenu: Verse?
         @State var transientHighlightedVerseId: Int?
@@ -328,6 +346,11 @@ extension QuranPageView {
         var searchMatchHighlightColor: UIColor {
             UIColor(isNightMode ? Color.yellow.opacity(0.34) : Color.yellow.opacity(0.28))
         }
+        var preciseScrollTargetURL: URL? {
+            guard preciseScrollSurahId == surahId, let preciseScrollVerseId else { return nil }
+            guard chunk.contains(where: { $0.id == preciseScrollVerseId }) else { return nil }
+            return verseLinkURL(forVerseId: preciseScrollVerseId)
+        }
 
         var body: some View {
             VStack(alignment: .leading, spacing: 0) {
@@ -336,6 +359,12 @@ extension QuranPageView {
                     attributedText: chunkNSAttributedString,
                     lineSpacing: effectiveLineSpacing,
                     contextMenuEnabled: contextMenuEnabled,
+                    preciseScrollTargetURL: preciseScrollTargetURL,
+                    preciseScrollRequestID: preciseScrollRequestID,
+                    onPreciseScrollCompleted: {
+                        guard let preciseScrollVerseId else { return }
+                        onPreciseScrollCompleted?(surahId, preciseScrollVerseId)
+                    },
                     onTapURL: { url in
                         guard let verse = verse(for: url) else { return }
                         onTap(verse)
@@ -572,27 +601,167 @@ extension QuranPageView {
             verse: Verse
         ) {
             let trimmedQuery = searchHighlightQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard verse.id == searchHighlightVerseId, trimmedQuery.count >= 2 else { return }
+            guard searchHighlightSurahId == surahId, verse.id == searchHighlightVerseId,
+                trimmedQuery.count >= 2
+            else { return }
+            let verseText = attributedText.string
 
-            let nsText = attributedText.string as NSString
-            var searchRange = NSRange(location: 0, length: nsText.length)
+            if let ranges = highlightRanges(in: verseText, query: trimmedQuery), !ranges.isEmpty {
+                for range in ranges {
+                    let nsRange = NSRange(range, in: verseText)
+                    attributedText.addAttribute(
+                        .backgroundColor,
+                        value: searchMatchHighlightColor,
+                        range: nsRange
+                    )
+                }
+            }
+        }
 
-            while searchRange.location < nsText.length {
-                let foundRange = nsText.range(
-                    of: trimmedQuery,
-                    options: [],
-                    range: searchRange
+        func highlightRanges(in text: String, query: String) -> [Range<String.Index>]? {
+            if containsArabic(query) {
+                let normalizedQuery = normalizedSearchText(query, mode: searchHighlightMode)
+                guard !normalizedQuery.isEmpty else { return nil }
+                return normalizedArabicRanges(in: text, query: normalizedQuery)
+            }
+
+            var ranges: [Range<String.Index>] = []
+            var searchStart = text.startIndex
+
+            while searchStart < text.endIndex,
+                let range = text[searchStart...].range(
+                    of: query,
+                    options: [.caseInsensitive, .diacriticInsensitive]
                 )
-                guard foundRange.location != NSNotFound else { break }
-                attributedText.addAttribute(
-                    .backgroundColor,
-                    value: searchMatchHighlightColor,
-                    range: foundRange
-                )
+            {
+                ranges.append(range)
+                searchStart = range.upperBound
+            }
 
-                let nextLocation = foundRange.location + max(foundRange.length, 1)
-                guard nextLocation < nsText.length else { break }
-                searchRange = NSRange(location: nextLocation, length: nsText.length - nextLocation)
+            return ranges.isEmpty ? nil : ranges
+        }
+
+        func normalizedArabicRanges(in text: String, query: String) -> [Range<String.Index>]? {
+            let mapping = normalizedArabicIndexMap(for: text)
+            guard !mapping.normalized.isEmpty, !mapping.map.isEmpty else { return nil }
+
+            var ranges: [Range<String.Index>] = []
+            var searchStart = mapping.normalized.startIndex
+
+            while searchStart < mapping.normalized.endIndex,
+                let foundRange = mapping.normalized[searchStart...].range(of: query)
+            {
+                let lowerOffset = mapping.normalized.distance(
+                    from: mapping.normalized.startIndex,
+                    to: foundRange.lowerBound
+                )
+                let upperOffset = mapping.normalized.distance(
+                    from: mapping.normalized.startIndex,
+                    to: foundRange.upperBound
+                )
+                guard
+                    mapping.map.indices.contains(lowerOffset),
+                    mapping.map.indices.contains(max(upperOffset - 1, lowerOffset))
+                else {
+                    break
+                }
+
+                let lower = mapping.map[lowerOffset]
+                let lastMatched = mapping.map[max(upperOffset - 1, lowerOffset)]
+                let upper = text.index(after: lastMatched)
+                ranges.append(lower..<upper)
+                searchStart = foundRange.upperBound
+            }
+
+            return ranges.isEmpty ? nil : ranges
+        }
+
+        func normalizedArabicIndexMap(for text: String) -> (normalized: String, map: [String.Index]) {
+            var normalized = ""
+            var map: [String.Index] = []
+            var lastWasWhitespace = false
+
+            for index in text.indices {
+                let character = text[index]
+                if character.isWhitespace || character.isNewline {
+                    if !lastWasWhitespace, !normalized.isEmpty {
+                        normalized.append(" ")
+                        map.append(index)
+                    }
+                    lastWasWhitespace = true
+                    continue
+                }
+
+                lastWasWhitespace = false
+                let transformed = normalizedSearchText(String(character), mode: searchHighlightMode)
+                guard !transformed.isEmpty else { continue }
+                for transformedCharacter in transformed {
+                    normalized.append(transformedCharacter)
+                    map.append(index)
+                }
+            }
+
+            while normalized.last == " " {
+                normalized.removeLast()
+                map.removeLast()
+            }
+
+            return (normalized, map)
+        }
+
+        func normalizedSearchText(
+            _ text: String,
+            mode: QuranPageViewModel.ArabicSearchMatchMode
+        ) -> String {
+            switch mode {
+            case .exact:
+                return text
+            case .noDiacritics:
+                return stripArabicDiacriticsAndMarks(text)
+            case .normalized:
+                return normalizeArabic(text)
+            }
+        }
+
+        func normalizeArabic(_ text: String) -> String {
+            var result = stripArabicDiacriticsAndMarks(text)
+            result = result.replacingOccurrences(of: "أ", with: "ا")
+            result = result.replacingOccurrences(of: "إ", with: "ا")
+            result = result.replacingOccurrences(of: "آ", with: "ا")
+            result = result.replacingOccurrences(of: "ٱ", with: "ا")
+            result = result.replacingOccurrences(of: "ى", with: "ي")
+            result = result.replacingOccurrences(of: "ؤ", with: "و")
+            result = result.replacingOccurrences(of: "ئ", with: "ي")
+            result = result.replacingOccurrences(of: "ة", with: "ه")
+            return result
+        }
+
+        func stripArabicDiacriticsAndMarks(_ text: String) -> String {
+            let normalizedScalars = text.unicodeScalars.filter { scalar in
+                let value = scalar.value
+                if (0x0610...0x061A).contains(value) { return false }
+                if value == 0x0640 { return false }
+                if (0x064B...0x065F).contains(value) { return false }
+                if value == 0x0670 { return false }
+                if (0x06D6...0x06ED).contains(value) { return false }
+                if (0x08D4...0x08FF).contains(value) { return false }
+                return true
+            }
+
+            var result = String(normalizedScalars.map(Character.init))
+            result = result.replacingOccurrences(of: "۞", with: "")
+            result = result.replacingOccurrences(of: "ـ", with: "")
+            result =
+                result
+                .components(separatedBy: .whitespacesAndNewlines)
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            return result
+        }
+
+        func containsArabic(_ text: String) -> Bool {
+            text.unicodeScalars.contains { scalar in
+                (0x0600...0x06FF).contains(scalar.value) || (0x0750...0x077F).contains(scalar.value)
             }
         }
 
@@ -667,11 +836,18 @@ extension QuranPageView {
             let attributedText: NSAttributedString
             let lineSpacing: Double
             let contextMenuEnabled: Bool
+            let preciseScrollTargetURL: URL?
+            let preciseScrollRequestID: Int
+            let onPreciseScrollCompleted: (() -> Void)?
             let onTapURL: (URL) -> Void
             let onLongPressURL: (URL) -> Void
 
             func makeCoordinator() -> Coordinator {
-                Coordinator(onTapURL: onTapURL, onLongPressURL: onLongPressURL)
+                Coordinator(
+                    onTapURL: onTapURL,
+                    onLongPressURL: onLongPressURL,
+                    onPreciseScrollCompleted: onPreciseScrollCompleted
+                )
             }
 
             func makeUIView(context: Context) -> UITextView {
@@ -725,7 +901,9 @@ extension QuranPageView {
             func updateUIView(_ uiView: UITextView, context: Context) {
                 context.coordinator.onTapURL = onTapURL
                 context.coordinator.onLongPressURL = onLongPressURL
+                context.coordinator.onPreciseScrollCompleted = onPreciseScrollCompleted
                 context.coordinator.longPressGesture?.isEnabled = contextMenuEnabled
+                context.coordinator.preciseScrollTargetURL = preciseScrollTargetURL
 
                 let newText = withParagraphStyle(appliedTo: attributedText)
 
@@ -748,6 +926,8 @@ extension QuranPageView {
                         uiView.layoutIfNeeded()
                     }
                 }
+
+                context.coordinator.performPreciseScrollIfNeeded(requestID: preciseScrollRequestID)
             }
 
             func sizeThatFits(
@@ -796,10 +976,113 @@ extension QuranPageView {
                 weak var longPressGesture: UILongPressGestureRecognizer?
                 var onTapURL: (URL) -> Void
                 var onLongPressURL: (URL) -> Void
+                var onPreciseScrollCompleted: (() -> Void)?
+                var preciseScrollTargetURL: URL?
+                var lastPreciseScrollRequestID = 0
 
-                init(onTapURL: @escaping (URL) -> Void, onLongPressURL: @escaping (URL) -> Void) {
+                init(
+                    onTapURL: @escaping (URL) -> Void,
+                    onLongPressURL: @escaping (URL) -> Void,
+                    onPreciseScrollCompleted: (() -> Void)?
+                ) {
                     self.onTapURL = onTapURL
                     self.onLongPressURL = onLongPressURL
+                    self.onPreciseScrollCompleted = onPreciseScrollCompleted
+                }
+
+                func performPreciseScrollIfNeeded(requestID: Int) {
+                    guard requestID > 0, requestID != lastPreciseScrollRequestID else { return }
+                    guard let textView, let targetURL = preciseScrollTargetURL else { return }
+                    guard let scrollView = containingReaderScrollView(startingAt: textView) else {
+                        return
+                    }
+                    guard let targetRange = range(of: targetURL, in: textView.attributedText) else {
+                        return
+                    }
+
+                    textView.layoutManager.ensureLayout(for: textView.textContainer)
+                    let glyphRange = textView.layoutManager.glyphRange(
+                        forCharacterRange: targetRange,
+                        actualCharacterRange: nil
+                    )
+                    var targetRect = textView.layoutManager.boundingRect(
+                        forGlyphRange: glyphRange,
+                        in: textView.textContainer
+                    )
+                    targetRect.origin.x += textView.textContainerInset.left
+                    targetRect.origin.y += textView.textContainerInset.top
+
+                    let targetRectInScrollView = textView.convert(targetRect, to: scrollView)
+                    let targetOffsetY = max(
+                        -scrollView.adjustedContentInset.top,
+                        targetRectInScrollView.minY - 28
+                    )
+
+                    lastPreciseScrollRequestID = requestID
+                    DispatchQueue.main.async {
+                        scrollView.setContentOffset(
+                            CGPoint(x: scrollView.contentOffset.x, y: targetOffsetY),
+                            animated: true
+                        )
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { [weak self] in
+                        guard let self else { return }
+                        guard self.lastPreciseScrollRequestID == requestID else { return }
+                        guard let textView = self.textView,
+                            let scrollView = self.containingReaderScrollView(startingAt: textView),
+                            let targetRange = self.range(of: targetURL, in: textView.attributedText)
+                        else { return }
+
+                        textView.layoutManager.ensureLayout(for: textView.textContainer)
+                        let glyphRange = textView.layoutManager.glyphRange(
+                            forCharacterRange: targetRange,
+                            actualCharacterRange: nil
+                        )
+                        var refreshedRect = textView.layoutManager.boundingRect(
+                            forGlyphRange: glyphRange,
+                            in: textView.textContainer
+                        )
+                        refreshedRect.origin.x += textView.textContainerInset.left
+                        refreshedRect.origin.y += textView.textContainerInset.top
+
+                        let refreshedRectInScrollView = textView.convert(refreshedRect, to: scrollView)
+                        let refinedOffsetY = max(
+                            -scrollView.adjustedContentInset.top,
+                            refreshedRectInScrollView.minY - 18
+                        )
+                        scrollView.setContentOffset(
+                            CGPoint(x: scrollView.contentOffset.x, y: refinedOffsetY),
+                            animated: false
+                        )
+                        self.onPreciseScrollCompleted?()
+                    }
+                }
+
+                func range(of url: URL, in attributedText: NSAttributedString) -> NSRange? {
+                    let fullRange = NSRange(location: 0, length: attributedText.length)
+                    var foundRange: NSRange?
+
+                    attributedText.enumerateAttribute(.link, in: fullRange) { value, range, stop in
+                        guard let linkedURL = value as? URL, linkedURL == url else { return }
+                        foundRange = range
+                        stop.pointee = true
+                    }
+
+                    return foundRange
+                }
+
+                func containingReaderScrollView(startingAt view: UIView) -> UIScrollView? {
+                    var current = view.superview
+                    while let candidate = current {
+                        if let scrollView = candidate as? UIScrollView,
+                            scrollView !== view,
+                            scrollView.isScrollEnabled
+                        {
+                            return scrollView
+                        }
+                        current = candidate.superview
+                    }
+                    return nil
                 }
 
                 @objc func handleTap(_ gesture: UITapGestureRecognizer) {

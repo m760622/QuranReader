@@ -199,8 +199,12 @@ struct QuranPageView: View {
     @State var searchDebounceTask: Task<Void, Never>?
     @State var mushafSearchRange: MushafSearchRange = .all
     @State var activeSearchHighlightQuery = ""
+    @State var activeSearchHighlightSurahId: Int?
+    @State var activeSearchHighlightMode: QuranPageViewModel.ArabicSearchMatchMode = .normalized
     @State var activeSearchHighlightVerseId: Int?
+    @State var pendingMushafTargetSurahId: Int?
     @State var pendingMushafTargetVerseId: Int?
+    @State var mushafPreciseScrollRequestID = 0
     @AppStorage("searchHistory") var searchHistoryData: Data = Data()
     @State var searchHistory: [String] = []
     @State var showClearSearchHistoryConfirmation = false
@@ -890,6 +894,8 @@ struct QuranPageView: View {
                 } else {
                     proxy.scrollTo(chunkId, anchor: .top)
                 }
+                try? await Task.sleep(nanoseconds: 120_000_000)
+                mushafPreciseScrollRequestID &+= 1
                 pendingMushafScrollTargetChunkId = nil
             }
         }
@@ -1348,7 +1354,9 @@ struct QuranPageView: View {
             return
         }
         suppressVerseContextMenusTemporarily()
+        pendingMushafTargetSurahId = surahId
         pendingMushafTargetVerseId = verseId
+        mushafPreciseScrollRequestID &+= 1
         viewModel.updateLastReadVerse(verseId)
         pendingMushafScrollTargetChunkId = mushafChunkIdForVerse(
             surahId: surahId,
