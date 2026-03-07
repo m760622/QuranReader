@@ -1478,11 +1478,13 @@ struct QuranPageView: View {
         let maxPage = max(viewModel.maxMushafPage, 1)
         let clamped = min(max(page, 1), maxPage)
         suppressVerseContextMenusTemporarily()
-        storedMushafPageNumber = clamped
-        currentStandardPage = clamped
-        jumpSliderValue = Double(clamped)
-        pendingMushafScrollTargetPage = clamped
-        viewModel.jumpToMushafPage(clamped)
+        DispatchQueue.main.async {
+            storedMushafPageNumber = clamped
+            currentStandardPage = clamped
+            jumpSliderValue = Double(clamped)
+            pendingMushafScrollTargetPage = clamped
+            viewModel.jumpToMushafPage(clamped)
+        }
     }
 
     func jumpToSurahSafely(
@@ -1561,7 +1563,9 @@ struct QuranPageView: View {
     }
 
     func suppressVerseContextMenusTemporarily(duration: TimeInterval = 0.8) {
-        suppressVerseContextMenusUntil = Date().addingTimeInterval(duration)
+        DispatchQueue.main.async {
+            suppressVerseContextMenusUntil = Date().addingTimeInterval(duration)
+        }
     }
 
     func handleReaderModeDidChange() {

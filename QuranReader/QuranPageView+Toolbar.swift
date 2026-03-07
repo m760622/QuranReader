@@ -264,10 +264,12 @@ extension QuranPageView {
                     in: 1...Double(max(viewModel.maxMushafPage, 1)),
                     step: 1,
                     onEditingChanged: { editing in
-                        isJumpSliderEditing = editing
-                        if !editing {
-                            goToMushafPage(Int(jumpSliderValue))
-                            lightHaptic()
+                        DispatchQueue.main.async {
+                            isJumpSliderEditing = editing
+                            if !editing {
+                                goToMushafPage(Int(jumpSliderValue))
+                                lightHaptic()
+                            }
                         }
                     }
                 )

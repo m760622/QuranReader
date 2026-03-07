@@ -66,3 +66,10 @@
     - لا تجعل `currentSurahIndex` أو `lastReadVerseId` المصدر الأساسي لكروم المصحف، لأنهما قد يمثلان "آخر آية مقروءة/مستهدفة" لا الصفحة الظاهرة فعلاً.
     - السلايدر في الشريط العلوي يجب أن يعرض الصفحة المرئية الحالية عندما لا يكون المستخدم يسحبه يدويًا، ويستخدم قيمة منفصلة مؤقتًا فقط أثناء `editing`.
     - أزرار السابق/التالي داخل الشريط العلوي يجب أن تنطلق من الصفحة المرئية الحالية، لا من صفحة مخزنة قديمة.
+
+14. **قاعدة أمان تحديث الحالة أثناء التمرير والتفاعل (State Update Safety)**:
+    - لا تعدّل `@State` أو `@Published` مباشرة من داخل `onChange`, `GeometryReader`, `Slider.onEditingChanged`, `UIScrollView` callbacks، أو أي callback قد يعمل أثناء دورة تحديث العرض نفسها.
+    - عند الحاجة لتحديث الحالة من هذه المسارات، استخدم مسارًا مؤجلًا وآمنًا مثل `DispatchQueue.main.async` أو `Task { @MainActor ... }` أو مجمّع debounce/throttle واحد، ولا تُنشئ تدفقًا غير محدود من التحديثات المؤجلة لكل frame.
+    - في تتبع التمرير، يجب تجميع الأحداث في مسار واحد (`schedule/process`) بدل إنشاء `main.async` جديد لكل نبضة تمرير، لأن ذلك يسبب بطئًا ورسائل مثل `onChange(of: Bool) action tried to update multiple times per frame`.
+    - تغييرات الـ slider والتنقل اليدوي (`goToMushafPage`, `isJumpSliderEditing`, `suppressVerseContextMenusUntil`) يجب ألا تُكتب مباشرة داخل callbacks التفاعلية أثناء تحديث الـ view.
+    - إذا ظهر تحذير `Modifying state during view update` أو `Publishing changes from within view updates is not allowed`، فاعتبره خللًا معماريًا يجب إصلاحه من المصدر، لا مجرد تحذير يمكن تجاهله.
