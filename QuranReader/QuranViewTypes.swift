@@ -143,6 +143,7 @@ struct ReaderNavigationState: Equatable {
 struct ReaderCustomFontOption: Identifiable, Hashable {
     let postScriptName: String
     let displayName: String
+    let recommendation: String?
     var id: String { postScriptName }
 }
 

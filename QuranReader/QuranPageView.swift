@@ -13,16 +13,53 @@ let bundledReaderFontFiles: [String] = [
     "ElgharibA591.otf",
     "ElgharibA597.otf",
     "ElgharibA598.otf",
+    "HafsNastaleeq Ver10.otf",
     "HAFSUthmanicV22.otf",
     "MCSAlshamalAm9li9.otf",
     "NeiriziAm9li9.otf",
     "QuranSaleemAm9li9.otf",
+    "Symbols1_Ver02.otf",
     "RalewayMediumAm9li9.otf",
     "RalewayRegularAm9li9.otf",
     "SulusLettersAm9li9.otf",
+    "UthmanicHafs1 Ver09.otf",
+    "UthmanTN1 Ver10.otf",
+    "UthmanTN1B Ver10.otf",
     "UthmanTahaBold.otf",
     "UthmanTahaReqular.otf",
 ]
+
+func readerCustomFontDisplayName(for resource: String, postScriptName: String) -> String {
+    switch resource {
+    case "HafsNastaleeq Ver10":
+        return "Hafs Nastaleeq"
+    case "SulusLettersAm9li9":
+        return "A Suls"
+    case "Symbols1_Ver02":
+        return "Symbols 1"
+    case "UthmanicHafs1 Ver09":
+        return "Uthmanic Hafs 1"
+    case "UthmanTN1 Ver10":
+        return "Uthman TN1"
+    case "UthmanTN1B Ver10":
+        return "Uthman TN1 Bold"
+    default:
+        return resource
+    }
+}
+
+func readerCustomFontRecommendation(for displayName: String) -> String? {
+    switch displayName {
+    case "Uthmanic Hafs 1":
+        return "موصى به لنص المصحف"
+    case "Uthman TN1 Bold":
+        return "موصى به لعناوين السور"
+    case "A Suls":
+        return "موصى به للبسملة"
+    default:
+        return nil
+    }
+}
 
 func buildReaderCustomFontOptions() -> [ReaderCustomFontOption] {
     var options: [ReaderCustomFontOption] = []
@@ -72,7 +109,16 @@ func buildReaderCustomFontOptions() -> [ReaderCustomFontOption] {
             options.append(
                 ReaderCustomFontOption(
                     postScriptName: postScriptName,
-                    displayName: resource
+                    displayName: readerCustomFontDisplayName(
+                        for: resource,
+                        postScriptName: postScriptName
+                    ),
+                    recommendation: readerCustomFontRecommendation(
+                        for: readerCustomFontDisplayName(
+                            for: resource,
+                            postScriptName: postScriptName
+                        )
+                    )
                 )
             )
         }
@@ -97,16 +143,38 @@ func readerCustomFontCategoryTitle(for displayName: String) -> String {
 func buildReaderCustomFontSections() -> [ReaderCustomFontSection] {
     let orderedTitles = ["خطوط عربية ومصحفية", "عناوين السور", "خطوط لاتينية"]
     var buckets: [String: [ReaderCustomFontOption]] = [:]
+    var recommendedFonts: [ReaderCustomFontOption] = []
 
     for option in readerCustomFontOptions {
+        if option.recommendation != nil {
+            recommendedFonts.append(option)
+        }
         let title = readerCustomFontCategoryTitle(for: option.displayName)
         buckets[title, default: []].append(option)
     }
 
-    return orderedTitles.compactMap { title in
+    var sections: [ReaderCustomFontSection] = []
+
+    if !recommendedFonts.isEmpty {
+        let recommendationOrder = [
+            "Uthmanic Hafs 1",
+            "Uthman TN1 Bold",
+            "A Suls",
+        ]
+        let sortedRecommended = recommendedFonts.sorted { lhs, rhs in
+            let leftIndex = recommendationOrder.firstIndex(of: lhs.displayName) ?? .max
+            let rightIndex = recommendationOrder.firstIndex(of: rhs.displayName) ?? .max
+            return leftIndex < rightIndex
+        }
+        sections.append(ReaderCustomFontSection(title: "موصى بها", fonts: sortedRecommended))
+    }
+
+    sections.append(contentsOf: orderedTitles.compactMap { title in
         guard let fonts = buckets[title], !fonts.isEmpty else { return nil }
         return ReaderCustomFontSection(title: title, fonts: fonts)
-    }
+    })
+
+    return sections
 }
 
 let readerCustomFontSections: [ReaderCustomFontSection] = buildReaderCustomFontSections()
@@ -114,7 +182,9 @@ let readerCustomFontSections: [ReaderCustomFontSection] = buildReaderCustomFontS
 let quranFontCandidates: [String] =
     [
         "KFGQPC Uthmanic Script HAFS",
+        "KFGQPCUthmanicScriptHAFS",
         "KFGQPC Uthman Taha Naskh",
+        "KFGQPC Uthman Taha Naskh Regular",
         "UthmanicHafs",
         "Uthmanic Hafs",
         "Amiri Quran",
@@ -122,6 +192,43 @@ let quranFontCandidates: [String] =
         "ScheherazadeNew-Regular",
         "Scheherazade",
     ] + readerCustomFontOptions.map(\.postScriptName)
+
+let surahTitleFontCandidates: [String] = [
+    "KFGQPC Uthman Taha Naskh Bold",
+    "KFGQPCUthmanTahaNaskh-Bold",
+]
+
+let basmalaFontCandidates: [String] = [
+    "A Suls"
+]
+
+func readerFontDesign(for selection: String) -> Font.Design {
+    switch selection {
+    case "system-default":
+        return .default
+    case "system-rounded":
+        return .rounded
+    default:
+        return .serif
+    }
+}
+
+func resolveReaderFontName(selection: String, size: CGFloat, autoCandidates: [String]) -> String? {
+    if selection == "auto" {
+        for candidate in autoCandidates where UIFont(name: candidate, size: size) != nil {
+            return candidate
+        }
+        return nil
+    }
+
+    if selection.hasPrefix("custom:") {
+        let name = String(selection.dropFirst("custom:".count))
+        guard !name.isEmpty else { return nil }
+        return UIFont(name: name, size: size) != nil ? name : nil
+    }
+
+    return nil
+}
 
 let readerDiagnosticsLogger = Logger(
     subsystem: "QuranReader", category: "ReaderDiagnostics")
@@ -164,6 +271,8 @@ struct QuranPageView: View {
     @State var baseFontSizeForGesture: Double? = nil
     @AppStorage("readerLineSpacing") var lineSpacing: Double = 25
     @AppStorage("readerFontSelection") var readerFontSelection: String = "auto"
+    @AppStorage("readerSurahTitleFontSelection") var readerSurahTitleFontSelection: String = "auto"
+    @AppStorage("readerBasmalaFontSelection") var readerBasmalaFontSelection: String = "auto"
     @AppStorage("readerFontWeight") var readerFontWeightRawValue: String =
         ReaderFontWeightOption.regular.rawValue
     @AppStorage("readerDayTextColor") var dayTextColorData: Data = Data()
@@ -410,33 +519,31 @@ struct QuranPageView: View {
     }
 
     var readerSystemFontDesign: Font.Design {
-        switch readerFontSelection {
-        case "system-default":
-            return .default
-        case "system-rounded":
-            return .rounded
-        default:
-            return .serif
-        }
+        readerFontDesign(for: readerFontSelection)
     }
 
     func resolveCustomFontName() -> String? {
-        if readerFontSelection == "auto" {
-            for candidate in quranFontCandidates {
-                if UIFont(name: candidate, size: CGFloat(fontSize)) != nil {
-                    return candidate
-                }
-            }
-            return nil
-        }
+        resolveReaderFontName(
+            selection: readerFontSelection,
+            size: CGFloat(fontSize),
+            autoCandidates: quranFontCandidates
+        )
+    }
 
-        if readerFontSelection.hasPrefix("custom:") {
-            let name = String(readerFontSelection.dropFirst("custom:".count))
-            guard !name.isEmpty else { return nil }
-            return UIFont(name: name, size: CGFloat(fontSize)) != nil ? name : nil
-        }
+    var resolvedSurahTitleFontName: String? {
+        resolveReaderFontName(
+            selection: readerSurahTitleFontSelection,
+            size: 34,
+            autoCandidates: surahTitleFontCandidates
+        )
+    }
 
-        return nil
+    var resolvedBasmalaFontName: String? {
+        resolveReaderFontName(
+            selection: readerBasmalaFontSelection,
+            size: 26,
+            autoCandidates: basmalaFontCandidates
+        )
     }
 
     var readerVerseFont: Font {
@@ -791,7 +898,9 @@ struct QuranPageView: View {
                                     if section.verses.first?.id == 1 {
                                         SurahHeaderOrnament(
                                             name: section.surah.name,
-                                            color: primaryGreen
+                                            color: primaryGreen,
+                                            titleFontName: resolvedSurahTitleFontName,
+                                            basmalaFontName: resolvedBasmalaFontName
                                         )
                                         .frame(maxWidth: .infinity, alignment: .center)
                                         .padding(.top, 6)
@@ -821,7 +930,12 @@ struct QuranPageView: View {
                         }
                     }
                 } else {
-                    SurahHeaderOrnament(name: surah.name, color: primaryGreen)
+                    SurahHeaderOrnament(
+                        name: surah.name,
+                        color: primaryGreen,
+                        titleFontName: resolvedSurahTitleFontName,
+                        basmalaFontName: resolvedBasmalaFontName
+                    )
                         .padding(.top, isFocusMode ? 18 : 6)
 
                     quranTextBox(surah: surah)

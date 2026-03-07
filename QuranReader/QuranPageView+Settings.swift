@@ -14,6 +14,9 @@ extension QuranPageView {
         @AppStorage("readerFontSize") var fontSize: Double = 28
         @AppStorage("readerLineSpacing") var lineSpacing: Double = 25
         @AppStorage("readerFontSelection") var readerFontSelection: String = "auto"
+        @AppStorage("readerSurahTitleFontSelection") var readerSurahTitleFontSelection: String =
+            "auto"
+        @AppStorage("readerBasmalaFontSelection") var readerBasmalaFontSelection: String = "auto"
         @AppStorage("readerFontWeight") var readerFontWeightRawValue: String =
             ReaderFontWeightOption.regular.rawValue
         @AppStorage("useHaptics") var useHaptics: Bool = true
@@ -73,31 +76,15 @@ extension QuranPageView {
         }
 
         var systemFontDesign: Font.Design {
-            switch readerFontSelection {
-            case "system-default":
-                return .default
-            case "system-rounded":
-                return .rounded
-            default:
-                return .serif
-            }
+            readerFontDesign(for: readerFontSelection)
         }
 
         var resolvedCustomFontName: String? {
-            if readerFontSelection == "auto" {
-                for candidate in quranFontCandidates {
-                    if UIFont(name: candidate, size: 18) != nil {
-                        return candidate
-                    }
-                }
-                return nil
-            }
-            if readerFontSelection.hasPrefix("custom:") {
-                let name = String(readerFontSelection.dropFirst("custom:".count))
-                guard !name.isEmpty else { return nil }
-                return UIFont(name: name, size: 18) != nil ? name : nil
-            }
-            return nil
+            resolveReaderFontName(
+                selection: readerFontSelection,
+                size: 18,
+                autoCandidates: quranFontCandidates
+            )
         }
 
         var previewFont: Font {
@@ -342,35 +329,80 @@ extension QuranPageView {
 
         @ViewBuilder
         var fontSelectionSection: some View {
-            Section(header: Text("نوع الخط").font(.headline)) {
+            Section(header: Text("الخطوط").font(.headline)) {
                 Toggle("إظهار الاسم الداخلي للخط", isOn: $showInternalFontNames)
                     .tint(primaryGreen)
-                fontTypePicker
+                verseFontTypePicker
+                surahTitleFontPicker
+                basmalaFontPicker
                 fontWeightPicker
                 fontPreview
             }
         }
 
-        var fontTypePicker: some View {
-            Picker("نوع الخط", selection: $readerFontSelection) {
+        var verseFontTypePicker: some View {
+            Picker("خط نص المصحف", selection: $readerFontSelection) {
                 Text("تلقائي (عثماني)").tag("auto")
                 Text("نظامي (سيرف)").tag("system-serif")
                 Text("نظامي (افتراضي)").tag("system-default")
                 Text("نظامي (مستدير)").tag("system-rounded")
-                ForEach(readerCustomFontSections) { section in
-                    Section(section.title) {
-                        ForEach(section.fonts) { fontOption in
-                            Text(
-                                showInternalFontNames
-                                    ? "خط: \(fontOption.displayName) • \(fontOption.postScriptName)"
-                                    : "خط: \(fontOption.displayName)"
-                            )
-                            .tag("custom:\(fontOption.postScriptName)")
-                        }
+                fontMenuSections
+            }
+            .pickerStyle(.menu)
+        }
+
+        var surahTitleFontPicker: some View {
+            Picker("خط عنوان السورة", selection: $readerSurahTitleFontSelection) {
+                Text("تلقائي (عنوان موصى به)").tag("auto")
+                Text("نظامي (سيرف)").tag("system-serif")
+                fontMenuSections
+            }
+            .pickerStyle(.menu)
+        }
+
+        var basmalaFontPicker: some View {
+            Picker("خط البسملة", selection: $readerBasmalaFontSelection) {
+                Text("تلقائي (A Suls)").tag("auto")
+                Text("نظامي (سيرف)").tag("system-serif")
+                fontMenuSections
+            }
+            .pickerStyle(.menu)
+        }
+
+        @ViewBuilder
+        var fontMenuSections: some View {
+            ForEach(readerCustomFontSections) { section in
+                Section(section.title) {
+                    ForEach(section.fonts) { fontOption in
+                        Text(
+                            showInternalFontNames
+                                ? fontPickerLabel(
+                                    for: fontOption,
+                                    showingInternalName: true
+                                )
+                                : fontPickerLabel(
+                                    for: fontOption,
+                                    showingInternalName: false
+                                )
+                        )
+                        .tag("custom:\(fontOption.postScriptName)")
                     }
                 }
             }
-            .pickerStyle(.menu)
+        }
+
+        func fontPickerLabel(
+            for fontOption: ReaderCustomFontOption,
+            showingInternalName: Bool
+        ) -> String {
+            var parts: [String] = ["خط: \(fontOption.displayName)"]
+            if let recommendation = fontOption.recommendation {
+                parts.append(recommendation)
+            }
+            if showingInternalName {
+                parts.append(fontOption.postScriptName)
+            }
+            return parts.joined(separator: " • ")
         }
 
         var fontWeightPicker: some View {
@@ -618,6 +650,8 @@ extension QuranPageView {
                     lineSpacing = 25
                     autoScrollMinutesPerPage = 2.0
                     readerFontSelection = "auto"
+                    readerSurahTitleFontSelection = "auto"
+                    readerBasmalaFontSelection = "auto"
                     readerFontWeightRawValue = ReaderFontWeightOption.regular.rawValue
                     dayTextColorData = Data()
                     nightTextColorData = Data()
