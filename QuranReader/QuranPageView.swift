@@ -598,6 +598,11 @@ struct QuranPageView: View {
         return "\(ayahCount) آية • \(sections.count) سور"
     }
 
+    var currentJuzRemainingTimeStatusLabel: String {
+        guard isAutoScrolling, !estimatedTimeToFinishCurrentJuzLabel.isEmpty else { return "" }
+        return "متبقٍ \(estimatedTimeToFinishCurrentJuzLabel)"
+    }
+
     var currentVerseForReadingChrome: Verse? {
         guard let surah = viewModel.currentSurah else { return nil }
         return surah.verses.first(where: { $0.id == viewModel.lastReadVerseId })
@@ -658,6 +663,48 @@ struct QuranPageView: View {
 
         // Each page takes `autoScrollMinutesPerPage` minutes — simple and accurate.
         let totalSeconds = Double(remainingPages) * autoScrollMinutesPerPage * 60.0
+        return formatRemainingTime(seconds: totalSeconds)
+    }
+
+    var estimatedTimeToFinishCurrentPageLabel: String {
+        guard isAutoScrolling else { return "" }
+
+        let currentPage = currentStandardPage ?? storedMushafPageNumber
+        let currentAnchor = mushafPageAnchorYByPage[currentPage]
+        let nextAnchor = mushafPageAnchorYByPage[currentPage + 1]
+        let previousAnchor = mushafPageAnchorYByPage[currentPage - 1]
+
+        let estimatedPageHeight: CGFloat = {
+            if let currentAnchor, let nextAnchor {
+                let delta = nextAnchor - currentAnchor
+                if delta > 100 { return delta }
+            }
+            if let previousAnchor, let currentAnchor {
+                let delta = currentAnchor - previousAnchor
+                if delta > 100 { return delta }
+            }
+            return 1200
+        }()
+
+        let pageTopY: CGFloat = {
+            if let currentAnchor { return currentAnchor }
+            if let nextAnchor { return max(0, nextAnchor - estimatedPageHeight) }
+            if let previousAnchor { return previousAnchor + estimatedPageHeight }
+            return CGFloat(max(0, currentPage - 1)) * estimatedPageHeight
+        }()
+
+        let offset = resolvedScrollView.map {
+            Double(max(0, $0.contentOffset.y + $0.adjustedContentInset.top))
+        } ?? viewModel.lastScrollOffset
+        let referenceY = CGFloat(offset)
+        let consumedPoints = min(max(referenceY - pageTopY, 0), estimatedPageHeight)
+        let remainingPoints = max(0, estimatedPageHeight - consumedPoints)
+        guard remainingPoints > 1 else { return "0:00" }
+
+        let pointsPerSecond = 1200.0 / (autoScrollMinutesPerPage * 60.0)
+        guard pointsPerSecond.isFinite, pointsPerSecond > 0 else { return "" }
+
+        let totalSeconds = Double(remainingPoints) / pointsPerSecond
         return formatRemainingTime(seconds: totalSeconds)
     }
 

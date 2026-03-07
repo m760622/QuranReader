@@ -226,11 +226,19 @@ extension QuranPageView {
                         }
                     }
 
-                    Text(
-                        "\(viewModel.currentSurah?.verses.count ?? 0) آية • \(currentSurahSubtitle)"
-                    )
+                    HStack(spacing: 6) {
+                        Text(
+                            "\(viewModel.currentSurah?.verses.count ?? 0) آية • \(currentSurahSubtitle)"
+                        )
+                        .foregroundColor(secondaryTextColor.opacity(0.8))
+
+                        if !currentJuzRemainingTimeStatusLabel.isEmpty {
+                            Text(currentJuzRemainingTimeStatusLabel)
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .foregroundColor(.orange.opacity(0.92))
+                        }
+                    }
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(secondaryTextColor.opacity(0.8))
                 }
 
                 Spacer()
