@@ -1,8 +1,10 @@
+import CryptoKit
 import Foundation
 import GRDB
 
 public final class DatabaseManager: @unchecked Sendable {
     public static let shared = DatabaseManager()
+    private static let bundledDatabaseSignatureKey = "db_manager.bundled_database_signature"
 
     public var dbReader: DatabaseReader?
 
@@ -20,6 +22,7 @@ public final class DatabaseManager: @unchecked Sendable {
             let documentsURL = try fileManager.url(
                 for: .documentDirectory, in: .userDomainMask, appropriateFor: nil,
                 create: true)
+            let bundledSignature = try databaseSignature(for: bundleURL)
 
             // Ensure the directory actually exists before copying into it
             do {
@@ -29,12 +32,25 @@ public final class DatabaseManager: @unchecked Sendable {
                 }
 
                 databaseURL = documentsURL.appendingPathComponent("quran_prod.sqlite")
+                let storedSignature = UserDefaults.standard.string(
+                    forKey: Self.bundledDatabaseSignatureKey)
+                let shouldRefreshDatabase =
+                    !fileManager.fileExists(atPath: databaseURL.path)
+                    || storedSignature != bundledSignature
 
-                if !fileManager.fileExists(atPath: databaseURL.path) {
+                if shouldRefreshDatabase {
+                    if fileManager.fileExists(atPath: databaseURL.path) {
+                        try removeDatabaseArtifacts(at: databaseURL, using: fileManager)
+                        print("DB_MANAGER: Replacing outdated quran_prod.sqlite")
+                    }
                     try fileManager.copyItem(at: bundleURL, to: databaseURL)
+                    UserDefaults.standard.set(
+                        bundledSignature, forKey: Self.bundledDatabaseSignatureKey)
                     print("DB_MANAGER: Successfully copied quran.sqlite to Documents")
                 } else {
+                    #if DEBUG
                     print("DB_MANAGER: Database already exists at \(databaseURL.path)")
+                    #endif
                 }
             } catch {
                 print("DB_MANAGER: File System Error: \(error)")
@@ -52,18 +68,6 @@ public final class DatabaseManager: @unchecked Sendable {
         var config = Configuration()
         if bundleURL != nil {
             config.readonly = true  // Read-only if we found it in the bundle (assuming production)
-            // A database created with WAL mode keeps the .sqlite-wal requirement until explicitly changed.
-            // Temporarily open the database with write access to change the journal mode before reading.
-            do {
-                let tempConfig = Configuration()
-                let tempQueue = try DatabaseQueue(path: databaseURL.path, configuration: tempConfig)
-                try tempQueue.write { db in
-                    try db.execute(sql: "PRAGMA journal_mode = DELETE;")
-                }
-            } catch {
-                print("DB_MANAGER: Failed to reset WAL mode: \(error)")
-            }
-
             // Use DatabaseQueue on the copied file in Documents.
             self.dbReader = try DatabaseQueue(path: databaseURL.path, configuration: config)
         } else {
@@ -71,6 +75,23 @@ public final class DatabaseManager: @unchecked Sendable {
             // Use DatabasePool for concurrent reads in development/seeding
             self.dbReader = try DatabasePool(path: databaseURL.path, configuration: config)
             try createSchemaIfNeeded()
+        }
+    }
+
+    private func databaseSignature(for url: URL) throws -> String {
+        let data = try Data(contentsOf: url)
+        let digest = SHA256.hash(data: data)
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func removeDatabaseArtifacts(at databaseURL: URL, using fileManager: FileManager) throws {
+        let walURL = databaseURL.deletingLastPathComponent().appendingPathComponent(
+            databaseURL.lastPathComponent + "-wal")
+        let shmURL = databaseURL.deletingLastPathComponent().appendingPathComponent(
+            databaseURL.lastPathComponent + "-shm")
+
+        for url in [databaseURL, walURL, shmURL] where fileManager.fileExists(atPath: url.path) {
+            try fileManager.removeItem(at: url)
         }
     }
 
