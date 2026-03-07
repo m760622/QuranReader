@@ -193,10 +193,7 @@ let quranFontCandidates: [String] =
         "Scheherazade",
     ] + readerCustomFontOptions.map(\.postScriptName)
 
-let surahTitleFontCandidates: [String] = [
-    "KFGQPC Uthman Taha Naskh Bold",
-    "KFGQPCUthmanTahaNaskh-Bold",
-]
+let surahTitleFontCandidates: [String] = []
 
 let basmalaFontCandidates: [String] = [
     "A Suls"
@@ -341,6 +338,7 @@ struct QuranPageView: View {
     @AppStorage("useHaptics") var useHaptics: Bool = true
     @AppStorage("enableReaderDiagnostics") var enableReaderDiagnostics: Bool = false
     @State var jumpSliderValue: Double = 0
+    @State var isJumpSliderEditing = false
     @State var quickNavigatorMiniTab: QuickNavigatorMiniTab = .control
     @State var showSettingsSheet = false
     @AppStorage("showClock") var showClock: Bool = true
@@ -556,7 +554,7 @@ struct QuranPageView: View {
 
     var currentSurahTitle: String {
         // Use the current page to look up the surah name from the mushaf index
-        let page = currentStandardPage ?? storedMushafPageNumber
+        let page = chromeMushafPageNumber
         let sections = mushafSurahSections(for: page)
         var orderedNames: [String] = []
         var seenSurahIDs = Set<Int>()
@@ -577,12 +575,12 @@ struct QuranPageView: View {
 
     var progressLabel: String {
         let maxPage = max(viewModel.maxMushafPage, 1)
-        let page = min(max(currentStandardPage ?? 1, 1), maxPage)
+        let page = min(max(chromeMushafPageNumber, 1), maxPage)
         return "\(page) / \(maxPage)"
     }
 
     var currentSurahSubtitle: String {
-        let page = currentStandardPage ?? storedMushafPageNumber
+        let page = chromeMushafPageNumber
         let sections = mushafSurahSections(for: page)
         let ayahCount = sections.reduce(0) { $0 + $1.verses.count }
         guard ayahCount > 0 else {
@@ -603,14 +601,44 @@ struct QuranPageView: View {
         return "متبقٍ \(estimatedTimeToFinishCurrentJuzLabel)"
     }
 
-    var currentVerseForReadingChrome: Verse? {
+    var chromeMushafPageNumber: Int {
+        if isMushafPageMode, let visiblePage = visibleMushafPageCandidateForChrome() {
+            return visiblePage
+        }
+        return currentStandardPage ?? storedMushafPageNumber
+    }
+
+    func visibleMushafPageCandidateForChrome() -> Int? {
+        guard !mushafPageAnchorYByPage.isEmpty else { return nil }
+
+        let offset = resolvedScrollView.map {
+            Double(max(0, $0.contentOffset.y + $0.adjustedContentInset.top))
+        } ?? viewModel.lastScrollOffset
+        let referenceY = CGFloat(offset) + hiddenChromeReaderTopInset + mushafPageTrackingTopBias
+        let sortedAnchors = mushafPageAnchorYByPage.sorted { $0.value < $1.value }
+        guard let first = sortedAnchors.first else { return nil }
+
+        var candidate = first
+        for anchor in sortedAnchors where anchor.value <= referenceY {
+            candidate = anchor
+        }
+        return candidate.key
+    }
+
+    var chromeVerseForReadingContext: Verse? {
+        let page = chromeMushafPageNumber
+        let sections = mushafSurahSections(for: page)
+        if let firstVisibleVerse = sections.first?.verses.first {
+            return firstVisibleVerse
+        }
+
         guard let surah = viewModel.currentSurah else { return nil }
         return surah.verses.first(where: { $0.id == viewModel.lastReadVerseId })
             ?? surah.verses.first
     }
 
     var currentJuzLabel: String {
-        if let juz = currentVerseForReadingChrome?.juz?.number {
+        if let juz = chromeVerseForReadingContext?.juz?.number {
             return "الجزء \(juz)"
         }
         if let juz = viewModel.currentSurah?.juzNumbers?.first {
@@ -621,7 +649,7 @@ struct QuranPageView: View {
 
     var currentHizbLabel: String {
         guard
-            let verse = currentVerseForReadingChrome,
+            let verse = chromeVerseForReadingContext,
             let juzNumber = verse.juz?.number
         else {
             return "الحزب -"
@@ -650,10 +678,10 @@ struct QuranPageView: View {
     var estimatedTimeToFinishCurrentJuzLabel: String {
         guard
             isAutoScrolling,
-            let verse = currentVerseForReadingChrome,
+            let verse = chromeVerseForReadingContext,
             let juzNumber = verse.juz?.number,
             let pageBounds = juzPageBoundsByNumber[juzNumber],
-            let currentPage = currentStandardPage ?? verse.page
+            let currentPage = Optional(chromeMushafPageNumber)
         else {
             return ""
         }
@@ -669,7 +697,7 @@ struct QuranPageView: View {
     var estimatedTimeToFinishCurrentPageLabel: String {
         guard isAutoScrolling else { return "" }
 
-        let currentPage = currentStandardPage ?? storedMushafPageNumber
+        let currentPage = chromeMushafPageNumber
         let currentAnchor = mushafPageAnchorYByPage[currentPage]
         let nextAnchor = mushafPageAnchorYByPage[currentPage + 1]
         let previousAnchor = mushafPageAnchorYByPage[currentPage - 1]
@@ -880,11 +908,17 @@ struct QuranPageView: View {
     @ViewBuilder
     func mainScrollView(for surah: Surah, proxy: ScrollViewProxy) -> some View {
         ScrollView {
-            ScrollViewResolver { scrollView in
-                if resolvedScrollView !== scrollView {
-                    resolvedScrollView = scrollView
+            ScrollViewResolver(
+                onResolve: { scrollView in
+                    if resolvedScrollView !== scrollView {
+                        resolvedScrollView = scrollView
+                    }
+                },
+                onScroll: { offset in
+                    guard isMushafPageMode else { return }
+                    handleScrollOffsetFromResolvedScrollView(offset)
                 }
-            }
+            )
             .frame(width: 0, height: 0)
             .allowsHitTesting(false)
 
@@ -926,7 +960,7 @@ struct QuranPageView: View {
                             GeometryReader { geo in
                                 Color.clear
                                     .onAppear {
-                                        registerMushafPageAnchor(
+                                        scheduleMushafPageAnchorRegistration(
                                             page: page,
                                             minYInScrollSpace: geo.frame(
                                                 in: .named(scrollSpace)
@@ -935,10 +969,6 @@ struct QuranPageView: View {
                                     }
                             }
                         )
-                        .onAppear {
-                            syncVisibleMushafPage(page)
-                        }
-
                         if let sections = mushafIndexByPage[page], !sections.isEmpty {
                             VStack(alignment: .center, spacing: 12) {
                                 ForEach(sections) { section in
@@ -1424,15 +1454,15 @@ struct QuranPageView: View {
     }
 
     var canNavigatePrevious: Bool {
-        return (currentStandardPage ?? storedMushafPageNumber) > 1
+        return chromeMushafPageNumber > 1
     }
 
     var canNavigateNext: Bool {
-        return (currentStandardPage ?? storedMushafPageNumber) < max(viewModel.maxMushafPage, 1)
+        return chromeMushafPageNumber < max(viewModel.maxMushafPage, 1)
     }
 
     var pagerCenterLabel: String {
-        "\(currentStandardPage ?? 1)"
+        "\(chromeMushafPageNumber)"
     }
 
     func syncMushafPageFromCurrentSelection() {
@@ -1550,12 +1580,12 @@ struct QuranPageView: View {
     }
 
     func navigateNext() {
-        let currentPage = currentStandardPage ?? storedMushafPageNumber
+        let currentPage = chromeMushafPageNumber
         goToMushafPage(currentPage + 1)
     }
 
     func navigatePrevious() {
-        let currentPage = currentStandardPage ?? storedMushafPageNumber
+        let currentPage = chromeMushafPageNumber
         goToMushafPage(currentPage - 1)
     }
 

@@ -447,6 +447,18 @@ extension QuranPageView {
         return number
     }
 
+    func normalizedSurahLookupText(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+
+        var normalized = viewModel.normalizeArabic(trimmed)
+        normalized = normalized.replacingOccurrences(of: "سوره", with: "")
+        normalized = normalized.replacingOccurrences(of: "سورة", with: "")
+        normalized = normalized.replacingOccurrences(of: " ", with: "")
+        normalized = normalized.replacingOccurrences(of: "ـ", with: "")
+        return normalized
+    }
+
     // MARK: - Surah List (All / Favorites / Recent)
 
     var filteredSurahRows: [(index: Int, surah: Surah)] {
@@ -465,16 +477,22 @@ extension QuranPageView {
             }
         }
 
-        let normalizedQuery = surahListQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedQuery.isEmpty else {
+        let trimmedQuery = surahListQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
             return baseRows.map { (index: $0.0, surah: $0.1) }
         }
+
+        let normalizedQuery = normalizedSurahLookupText(trimmedQuery)
+        let rawDigits = trimmedQuery.filter(\.isNumber)
 
         return
             baseRows
             .filter { _, surah in
-                surah.name.localizedCaseInsensitiveContains(normalizedQuery)
-                    || String(surah.id).contains(normalizedQuery)
+                let normalizedName = normalizedSurahLookupText(surah.name)
+                let normalizedNumber = String(surah.id)
+                return (!normalizedQuery.isEmpty && normalizedName.contains(normalizedQuery))
+                    || (!rawDigits.isEmpty && normalizedNumber.contains(rawDigits))
+                    || surah.name.localizedCaseInsensitiveContains(trimmedQuery)
             }
             .map { (index: $0.0, surah: $0.1) }
     }

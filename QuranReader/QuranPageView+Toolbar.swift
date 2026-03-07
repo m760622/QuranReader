@@ -93,8 +93,8 @@ extension QuranPageView {
                         dualTone: true
                     )
 
-                    // Page Number Pill
-                    Text("ص \(currentStandardPage ?? 1)")
+                // Page Number Pill
+                    Text("ص \(chromeMushafPageNumber)")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(primaryGreen)
                         .lineLimit(1)
@@ -255,10 +255,16 @@ extension QuranPageView {
 
                 // Contemporary Slider — always in mushaf-page space
                 Slider(
-                    value: $jumpSliderValue,
+                    value: Binding(
+                        get: {
+                            isJumpSliderEditing ? jumpSliderValue : Double(chromeMushafPageNumber)
+                        },
+                        set: { jumpSliderValue = $0 }
+                    ),
                     in: 1...Double(max(viewModel.maxMushafPage, 1)),
                     step: 1,
                     onEditingChanged: { editing in
+                        isJumpSliderEditing = editing
                         if !editing {
                             goToMushafPage(Int(jumpSliderValue))
                             lightHaptic()

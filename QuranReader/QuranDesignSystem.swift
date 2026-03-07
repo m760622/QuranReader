@@ -35,18 +35,16 @@ struct QuranDesign {
 // MARK: - View Helpers
 extension View {
     func lightHaptic() {
-        #if targetEnvironment(simulator)
-            return
-        #endif
+        let isSimulator = ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil
+        guard !isSimulator else { return }
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.prepare()
         generator.impactOccurred()
     }
 
     func mediumHaptic() {
-        #if targetEnvironment(simulator)
-            return
-        #endif
+        let isSimulator = ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil
+        guard !isSimulator else { return }
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.prepare()
         generator.impactOccurred()

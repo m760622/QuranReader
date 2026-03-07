@@ -99,10 +99,26 @@ extension QuranPageView {
     }
 
     func handleScrollOffsetGeometryChange(_ newY: CGFloat) {
+        guard resolvedScrollView == nil else { return }
         let offset = max(0, Double(-newY))
+        scheduleReaderScrollHandling(offset: offset)
+    }
 
+    func handleScrollOffsetFromResolvedScrollView(_ offset: Double) {
+        scheduleReaderScrollHandling(offset: offset)
+    }
+
+    func scheduleReaderScrollHandling(offset: Double) {
+        pendingScrollHandlingTask?.cancel()
+        pendingScrollHandlingTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 16_000_000)
+            guard !Task.isCancelled else { return }
+            processReaderScrollOffset(offset)
+        }
+    }
+
+    func processReaderScrollOffset(_ offset: Double) {
         if isAutoScrolling {
-            // Avoid hammering @AppStorage/UserDefaults and spawning scroll handling tasks at high frequency.
             let now = CFAbsoluteTimeGetCurrent()
             if (now - lastAutoScrollPersistAt) >= 0.5 {
                 lastAutoScrollPersistAt = now
@@ -113,7 +129,6 @@ extension QuranPageView {
             return
         }
 
-        // Reduce noisy writes from tiny geometry jitter.
         if abs(viewModel.lastScrollOffset - offset) > 0.75 || offset <= 1 {
             viewModel.lastScrollOffset = offset
         }
@@ -121,8 +136,19 @@ extension QuranPageView {
         handleReaderScroll(offset: offset)
     }
 
+    func scheduleMushafPageAnchorRegistration(page: Int, minYInScrollSpace: CGFloat) {
+        DispatchQueue.main.async {
+            registerMushafPageAnchor(page: page, minYInScrollSpace: minYInScrollSpace)
+        }
+    }
+
     func registerMushafPageAnchor(page: Int, minYInScrollSpace: CGFloat) {
-        let contentOffsetY = CGFloat(max(0, viewModel.lastScrollOffset))
+        let contentOffsetY: CGFloat = {
+            if let scrollView = resolvedScrollView {
+                return max(0, scrollView.contentOffset.y + scrollView.adjustedContentInset.top)
+            }
+            return CGFloat(max(0, viewModel.lastScrollOffset))
+        }()
         let contentY = minYInScrollSpace + contentOffsetY
         guard contentY.isFinite else { return }
 
@@ -132,6 +158,7 @@ extension QuranPageView {
         } else if mushafPageAnchorYByPage[page] == nil {
             mushafPageAnchorYByPage[page] = contentY
         }
+
     }
 
     var mushafPageTrackingTopBias: CGFloat {
@@ -168,18 +195,8 @@ extension QuranPageView {
         guard let first = sortedAnchors.first else { return }
 
         var candidate = first
-        for anchor in sortedAnchors {
-            if anchor.value <= referenceY {
-                candidate = anchor
-            } else {
-                // Find closest between candidate and current
-                let currentDist = abs(candidate.value - referenceY)
-                let nextDist = abs(anchor.value - referenceY)
-                if nextDist < currentDist {
-                    candidate = anchor
-                }
-                break
-            }
+        for anchor in sortedAnchors where anchor.value <= referenceY {
+            candidate = anchor
         }
 
         let candidatePage = candidate.key
@@ -258,20 +275,31 @@ extension QuranPageView {
             self.jumpSliderValue = Double(page)
         }
 
-        if let firstSection = mushafIndexByPage[page]?.first,
-            let surahIndex = viewModel.surahs.firstIndex(where: { $0.id == firstSection.surah.id })
-        {
-            if viewModel.currentSurahIndex != surahIndex {
-                self.viewModel.currentSurahIndex = surahIndex
-            }
+        if let sections = mushafIndexByPage[page], let firstSection = sections.first {
             if let targetSurahId = readerNavigationState.targetSurahId,
                 let targetVerseId = readerNavigationState.targetVerseId,
-                let targetSurah = viewModel.surahs[safe: viewModel.currentSurahIndex],
-                targetSurah.id == targetSurahId,
-                targetSurah.verses.contains(where: { $0.id == targetVerseId && $0.page == page })
+                let targetSection = sections.first(where: { section in
+                    section.surah.id == targetSurahId
+                        && section.verses.contains(where: { $0.id == targetVerseId })
+                }),
+                let targetSurahIndex = viewModel.surahs.firstIndex(where: { $0.id == targetSurahId })
             {
-                self.viewModel.updateLastReadVerse(targetVerseId)
-            } else if let verseId = firstSection.verses.first?.id {
+                if viewModel.currentSurahIndex != targetSurahIndex {
+                    self.viewModel.currentSurahIndex = targetSurahIndex
+                }
+                if targetSection.verses.contains(where: { $0.id == targetVerseId }) {
+                    self.viewModel.updateLastReadVerse(targetVerseId)
+                }
+                return
+            }
+
+            if let surahIndex = viewModel.surahs.firstIndex(where: { $0.id == firstSection.surah.id }) {
+                if viewModel.currentSurahIndex != surahIndex {
+                    self.viewModel.currentSurahIndex = surahIndex
+                }
+            }
+
+            if let verseId = firstSection.verses.first?.id {
                 let recentlyTappedVerse = Date().timeIntervalSince(lastInteractiveTapAt) < 0.55
                 if !recentlyTappedVerse {
                     self.viewModel.updateLastReadVerse(verseId)

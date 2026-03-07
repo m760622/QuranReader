@@ -48,9 +48,7 @@ public final class DatabaseManager: @unchecked Sendable {
                         bundledSignature, forKey: Self.bundledDatabaseSignatureKey)
                     print("DB_MANAGER: Successfully copied quran.sqlite to Documents")
                 } else {
-                    #if DEBUG
-                    print("DB_MANAGER: Database already exists at \(databaseURL.path)")
-                    #endif
+                    // Up-to-date database already exists; keep startup logs quiet.
                 }
             } catch {
                 print("DB_MANAGER: File System Error: \(error)")

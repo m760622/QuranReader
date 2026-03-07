@@ -45,7 +45,7 @@ struct SurahHeaderOrnament: View {
         if let titleFontName, UIFont(name: titleFontName, size: 34) != nil {
             return .custom(titleFontName, size: 34)
         }
-        return .system(size: 34, weight: .bold, design: .serif)
+        return .system(size: 32, weight: .bold, design: .default)
     }
 
     var body: some View {

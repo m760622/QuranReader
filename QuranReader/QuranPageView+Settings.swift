@@ -65,9 +65,8 @@ extension QuranPageView {
 
         func settingsLightHaptic() {
             guard useHaptics else { return }
-            #if targetEnvironment(simulator)
-                return
-            #endif
+            let isSimulator = ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil
+            guard !isSimulator else { return }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
 

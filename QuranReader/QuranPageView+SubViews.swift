@@ -136,17 +136,11 @@ extension QuranPageView {
                                     .onAppear {
                                         let y = geo.frame(in: .named(scrollSpace ?? "")).origin.y
                                         if let scrollSpace = scrollSpace, !scrollSpace.isEmpty {
-                                            onRegisterAnchor?(group.pageNumber, y)
+                                            DispatchQueue.main.async {
+                                                onRegisterAnchor?(group.pageNumber, y)
+                                            }
                                         }
                                     }
-                                    .onChange(of: geo.frame(in: .named(scrollSpace ?? "")).origin.y)
-                                {
-                                    _,
-                                    newY in
-                                    if let scrollSpace = scrollSpace, !scrollSpace.isEmpty {
-                                        onRegisterAnchor?(group.pageNumber, newY)
-                                    }
-                                }
                             }
                         )
                     }

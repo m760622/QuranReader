@@ -842,6 +842,11 @@ extension QuranPageView {
 
     struct ScrollViewResolver: UIViewRepresentable {
         let onResolve: (UIScrollView) -> Void
+        let onScroll: (Double) -> Void
+
+        func makeCoordinator() -> Coordinator {
+            Coordinator(onScroll: onScroll)
+        }
 
         func makeUIView(context: Context) -> UIView {
             let view = UIView(frame: .zero)
@@ -849,6 +854,7 @@ extension QuranPageView {
             DispatchQueue.main.async { [weak view] in
                 guard let view else { return }
                 if let scrollView = findScrollView(from: view) {
+                    context.coordinator.attach(to: scrollView)
                     onResolve(scrollView)
                 }
             }
@@ -859,6 +865,7 @@ extension QuranPageView {
             DispatchQueue.main.async { [weak uiView] in
                 guard let uiView else { return }
                 if let scrollView = findScrollView(from: uiView) {
+                    context.coordinator.attach(to: scrollView)
                     onResolve(scrollView)
                 }
             }
@@ -871,6 +878,48 @@ extension QuranPageView {
                 node = current.superview
             }
             return nil
+        }
+
+        final class Coordinator: NSObject {
+            private let onScroll: (Double) -> Void
+            private weak var observedScrollView: UIScrollView?
+
+            init(onScroll: @escaping (Double) -> Void) {
+                self.onScroll = onScroll
+            }
+
+            func attach(to scrollView: UIScrollView) {
+                guard observedScrollView !== scrollView else { return }
+                observedScrollView?.removeObserver(self, forKeyPath: #keyPath(UIScrollView.contentOffset))
+                observedScrollView = scrollView
+                scrollView.addObserver(
+                    self,
+                    forKeyPath: #keyPath(UIScrollView.contentOffset),
+                    options: [.new],
+                    context: nil
+                )
+            }
+
+            deinit {
+                observedScrollView?.removeObserver(self, forKeyPath: #keyPath(UIScrollView.contentOffset))
+            }
+
+            override func observeValue(
+                forKeyPath keyPath: String?,
+                of object: Any?,
+                change: [NSKeyValueChangeKey: Any]?,
+                context: UnsafeMutableRawPointer?
+            ) {
+                guard keyPath == #keyPath(UIScrollView.contentOffset),
+                    let scrollView = object as? UIScrollView
+                else {
+                    return
+                }
+                let offset = Double(max(0, scrollView.contentOffset.y + scrollView.adjustedContentInset.top))
+                DispatchQueue.main.async { [onScroll] in
+                    onScroll(offset)
+                }
+            }
         }
     }
 
