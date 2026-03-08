@@ -661,6 +661,26 @@ struct QuranPageView: View {
 
     }
 
+    var autoScrollSpeedPresets: [Double] {
+        [3.0, 2.6, 2.2, 1.8, 1.4, 1.0, 0.7, 0.4]
+    }
+
+    var autoScrollSpeedLevel: Int {
+        guard let nearest = autoScrollSpeedPresets.enumerated().min(by: {
+            abs($0.element - autoScrollMinutesPerPage) < abs($1.element - autoScrollMinutesPerPage)
+        }) else {
+            return 0
+        }
+        return nearest.offset
+    }
+
+    func setAutoScrollSpeedLevel(_ level: Int) {
+        let clampedLevel = min(max(level, 0), autoScrollSpeedPresets.count - 1)
+        let targetMinutes = autoScrollSpeedPresets[clampedLevel]
+        guard abs(targetMinutes - autoScrollMinutesPerPage) > 0.001 else { return }
+        autoScrollMinutesPerPage = targetMinutes
+    }
+
     func formatRemainingTime(seconds: Double) -> String {
         guard seconds.isFinite, seconds > 0 else { return "--:--" }
         let total = Int(seconds.rounded())
@@ -1163,7 +1183,6 @@ struct QuranPageView: View {
 
     var focusModeQuickActions: some View {
         HStack(spacing: 12) {
-            // Surah Info Group - Now on the RIGHT (First in RTL HStack)
             VStack(alignment: .leading, spacing: 2) {
                 Button {
                     showSurahList = true
@@ -1172,15 +1191,19 @@ struct QuranPageView: View {
                     HStack(spacing: 4) {
                         Text(currentSurahTitle)
                             .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
                         Image(systemName: "chevron.down")
                             .font(.system(size: 8, weight: .bold))
                     }
                     .foregroundColor(primaryGreen)
+               //     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .buttonStyle(.plain)
+            //    .frame(maxWidth: .infinity, alignment: .trailing)
+                .layoutPriority(2)
 
                 HStack(spacing: 4) {
-                    // Page Info
                     HStack(spacing: 2) {
                         Text("\(chromeMushafPageNumber)")
                             .foregroundColor(secondaryTextColor)
@@ -1191,7 +1214,6 @@ struct QuranPageView: View {
                     Text("•")
                         .foregroundColor(secondaryTextColor.opacity(0.3))
 
-                    // Juz Info
                     HStack(spacing: 2) {
                         let juzLabel = currentJuzLabel.replacingOccurrences(
                             of: "الجزء", with: "جزء")
@@ -1206,34 +1228,37 @@ struct QuranPageView: View {
                                 .foregroundColor(secondaryTextColor)
                         }
                     }
+
+                    if isAutoScrolling {
+                        Text("•")
+                            .foregroundColor(secondaryTextColor.opacity(0.3))
+
+                        RemainingTimeTicker(
+                            remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
+                            resetToken: "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
+                            prefix: "",
+                            suffix: " د",
+                            font: .system(size: 9, weight: .bold, design: .monospaced),
+                            color: .orange,
+                            minWidth: 52
+                        )
+                        .fixedSize(horizontal: true, vertical: false)
+                    }
                 }
                 .font(.system(size: 9, weight: .bold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-
-                if isAutoScrolling {
-                    RemainingTimeTicker(
-                        remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
-                        resetToken: "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
-                        prefix: "",
-                        suffix: " د",
-                        font: .system(size: 10, weight: .bold, design: .monospaced),
-                        color: .orange,
-                        minWidth: 86
-                    )
-                    .fixedSize(horizontal: true, vertical: false)
-                }
+             //   .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .padding(.leading, 3)
             .lineLimit(1)
             .minimumScaleFactor(0.68)
             .layoutPriority(1)
+          //  .frame(maxWidth: .infinity, alignment: .trailing)
 
             Spacer()
 
-            // Action Buttons Group (Close + Quick Actions) - Now on the LEFT (Last in RTL HStack)
             HStack(spacing: 8) {
-                HStack(spacing: 3) {
+                HStack(spacing: 6) {
                     Button {
                         if isAutoScrolling {
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -1251,20 +1276,10 @@ struct QuranPageView: View {
                             isAutoScrolling ? "pause.fill" : "play.fill", tint: primaryGreen)
                     }
 
-                    Image(systemName: "hare.fill")
-                        .foregroundColor(textColor.opacity(0.6))
-                        .font(.caption)
-
-                    Slider(value: $autoScrollMinutesPerPage, in: 0.1...3, step: 0.3)
-                        .tint(.orange)
-                        .frame(width: 90)
-
-                    Image(systemName: "tortoise.fill")
-                        .foregroundColor(textColor.opacity(0.6))
-                        .font(.caption)
+                    focusModeAutoScrollSpeedControl
                 }
-                .padding(.horizontal, 3)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 2)
+                .padding(.vertical, 4)
                 .background(
                     Capsule()
                         .fill(.ultraThinMaterial)
@@ -1303,9 +1318,73 @@ struct QuranPageView: View {
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 10)
-        .frame(maxWidth: .infinity, alignment: .trailing)
+        .frame(maxWidth: .infinity, alignment: .trailing) //Fix imp 
         .background(backgroundColor.opacity(0.95))
         .overlay(Divider().opacity(0.10), alignment: .bottom)
+    }
+
+    var focusModeAutoScrollSpeedControl: some View {
+        HStack(spacing: 6) {
+            Text("0")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundColor(textColor.opacity(0.65))
+                .frame(width: 10)
+
+            GeometryReader { geometry in
+                let thumbWidth: CGFloat = 20
+                let thumbHeight: CGFloat = 20
+                let segmentCount = max(autoScrollSpeedPresets.count - 1, 1)
+                let usableWidth = max(geometry.size.width - thumbWidth, 1)
+                let stepWidth = usableWidth / CGFloat(segmentCount)
+                let level = autoScrollSpeedLevel
+                let thumbOffset = CGFloat(level) * stepWidth
+
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(textColor.opacity(0.12))
+
+                    Capsule()
+                        .fill(Color.orange.opacity(0.26))
+                        .frame(width: thumbOffset + (thumbWidth / 2))
+
+                    ForEach(1..<segmentCount, id: \.self) { segment in
+                        Rectangle()
+                            .fill(textColor.opacity(0.18))
+                            .frame(width: 1, height: 10)
+                            .offset(x: CGFloat(segment) * stepWidth + (thumbWidth / 2))
+                    }
+
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.white.opacity(0.96))
+                        .frame(width: thumbWidth, height: thumbHeight)
+                        .shadow(color: Color.black.opacity(0.10), radius: 4, x: 0, y: 1)
+                        .offset(x: thumbOffset)
+                }
+                .frame(height: 20)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let proposed = ((value.location.x - (thumbWidth / 2)) / stepWidth)
+                                .rounded()
+                            let newLevel = min(
+                                max(Int(proposed), 0),
+                                autoScrollSpeedPresets.count - 1
+                            )
+                            guard newLevel != autoScrollSpeedLevel else { return }
+                            setAutoScrollSpeedLevel(newLevel)
+                            lightHaptic()
+                        }
+                )
+            }
+            .frame(width: 86, height: 20)
+
+            Text("7")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundColor(textColor.opacity(0.65))
+                .frame(width: 10)
+        }
+        .environment(\.layoutDirection, .leftToRight)
     }
 
     @ViewBuilder
