@@ -230,14 +230,6 @@ func resolveReaderFontName(selection: String, size: CGFloat, autoCandidates: [St
 let readerDiagnosticsLogger = Logger(
     subsystem: "QuranReader", category: "ReaderDiagnostics")
 
-struct ReaderScrollOriginYPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = .zero
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
 struct SafeAreaInsetsPreferenceKey: PreferenceKey {
     static var defaultValue: EdgeInsets = .init()
 
@@ -424,7 +416,7 @@ struct QuranPageView: View {
             func flush() {
                 guard let page = currentPage, !currentGroup.isEmpty else { return }
                 map[page, default: []].append(
-                    MushafSurahSection(surah: surah, verses: currentGroup))
+                    MushafSurahSection(pageNumber: page, surah: surah, verses: currentGroup))
             }
 
             for verse in surah.verses {
@@ -596,11 +588,6 @@ struct QuranPageView: View {
         return "\(ayahCount) آية • \(sections.count) سور"
     }
 
-    var currentJuzRemainingTimeStatusLabel: String {
-        guard isAutoScrolling, !estimatedTimeToFinishCurrentJuzLabel.isEmpty else { return "" }
-        return "متبقٍ \(estimatedTimeToFinishCurrentJuzLabel)"
-    }
-
     var chromeMushafPageNumber: Int {
         if isMushafPageMode, let visiblePage = visibleMushafPageCandidateForChrome() {
             return visiblePage
@@ -618,11 +605,18 @@ struct QuranPageView: View {
         let sortedAnchors = mushafPageAnchorYByPage.sorted { $0.value < $1.value }
         guard let first = sortedAnchors.first else { return nil }
 
-        var candidate = first
-        for anchor in sortedAnchors where anchor.value <= referenceY {
-            candidate = anchor
+        var candidateIndex = 0
+        for (index, anchor) in sortedAnchors.enumerated() where anchor.value <= referenceY {
+            candidateIndex = index
         }
-        return candidate.key
+
+        if let nextAnchor = sortedAnchors[safe: candidateIndex + 1],
+            (nextAnchor.value - referenceY) <= mushafPageAdvanceVisibilityThreshold
+        {
+            return nextAnchor.key
+        }
+
+        return sortedAnchors[candidateIndex].key
     }
 
     var chromeVerseForReadingContext: Verse? {
@@ -675,27 +669,31 @@ struct QuranPageView: View {
         return String(format: "%d:%02d", minutes, secs)
     }
 
-    var estimatedTimeToFinishCurrentJuzLabel: String {
+    var estimatedTimeToFinishCurrentJuzSeconds: Double? {
         guard
             isAutoScrolling,
             let verse = chromeVerseForReadingContext,
             let juzNumber = verse.juz?.number,
-            let pageBounds = juzPageBoundsByNumber[juzNumber],
-            let currentPage = Optional(chromeMushafPageNumber)
+            let pageBounds = juzPageBoundsByNumber[juzNumber]
         else {
-            return ""
+            return nil
         }
 
-        let remainingPages = max(0, pageBounds.max - currentPage)
-        guard remainingPages > 0 else { return "0:00" }
+        let currentPage = chromeMushafPageNumber
+        let currentPageSeconds =
+            estimatedTimeToFinishCurrentPageSeconds ?? (autoScrollMinutesPerPage * 60.0)
+        let followingFullPages = max(0, pageBounds.max - currentPage)
+        return
+            currentPageSeconds + Double(followingFullPages) * autoScrollMinutesPerPage * 60.0
+    }
 
-        // Each page takes `autoScrollMinutesPerPage` minutes — simple and accurate.
-        let totalSeconds = Double(remainingPages) * autoScrollMinutesPerPage * 60.0
+    var estimatedTimeToFinishCurrentJuzLabel: String {
+        guard let totalSeconds = estimatedTimeToFinishCurrentJuzSeconds else { return "" }
         return formatRemainingTime(seconds: totalSeconds)
     }
 
-    var estimatedTimeToFinishCurrentPageLabel: String {
-        guard isAutoScrolling else { return "" }
+    var estimatedTimeToFinishCurrentPageSeconds: Double? {
+        guard isAutoScrolling else { return nil }
 
         let currentPage = chromeMushafPageNumber
         let currentAnchor = mushafPageAnchorYByPage[currentPage]
@@ -727,12 +725,16 @@ struct QuranPageView: View {
         let referenceY = CGFloat(offset)
         let consumedPoints = min(max(referenceY - pageTopY, 0), estimatedPageHeight)
         let remainingPoints = max(0, estimatedPageHeight - consumedPoints)
-        guard remainingPoints > 1 else { return "0:00" }
+        guard remainingPoints > 1 else { return 0 }
 
         let pointsPerSecond = 1200.0 / (autoScrollMinutesPerPage * 60.0)
-        guard pointsPerSecond.isFinite, pointsPerSecond > 0 else { return "" }
+        guard pointsPerSecond.isFinite, pointsPerSecond > 0 else { return nil }
 
-        let totalSeconds = Double(remainingPoints) / pointsPerSecond
+        return Double(remainingPoints) / pointsPerSecond
+    }
+
+    var estimatedTimeToFinishCurrentPageLabel: String {
+        guard let totalSeconds = estimatedTimeToFinishCurrentPageSeconds else { return "" }
         return formatRemainingTime(seconds: totalSeconds)
     }
 
@@ -911,7 +913,9 @@ struct QuranPageView: View {
             ScrollViewResolver(
                 onResolve: { scrollView in
                     if resolvedScrollView !== scrollView {
-                        resolvedScrollView = scrollView
+                        DispatchQueue.main.async {
+                            resolvedScrollView = scrollView
+                        }
                     }
                 },
                 onScroll: { offset in
@@ -924,11 +928,13 @@ struct QuranPageView: View {
 
             LazyVStack(spacing: 22) {
                 GeometryReader { geo in
+                    let originY = geo.frame(in: .named(scrollSpace)).origin.y
+                    let originToken = Int(originY.rounded())
                     Color.clear
-                        .preference(
-                            key: ReaderScrollOriginYPreferenceKey.self,
-                            value: geo.frame(in: .named(scrollSpace)).origin.y
-                        )
+                        .task(id: originToken) {
+                            guard resolvedScrollView == nil, isMushafPageMode else { return }
+                            handleScrollOffsetGeometryChange(originY)
+                        }
                         .onAppear {
                             captureLaunchCheckpointIfNeeded()
                             initialRestoreTask?.cancel()
@@ -947,6 +953,7 @@ struct QuranPageView: View {
                     let maxPage = max(viewModel.maxMushafPage, 1)
 
                     ForEach(1...maxPage, id: \.self) { page in
+                        let sections = mushafSurahSections(for: page)
                         PageDividerView(
                             surahId: 0,
                             pageNumber: page,
@@ -958,18 +965,18 @@ struct QuranPageView: View {
                         .id("MUSHAF_PAGE_\(page)")
                         .background(
                             GeometryReader { geo in
+                                let minY = geo.frame(in: .named(scrollSpace)).minY
+                                let anchorToken = Int(minY.rounded())
                                 Color.clear
-                                    .onAppear {
+                                    .task(id: anchorToken) {
                                         scheduleMushafPageAnchorRegistration(
                                             page: page,
-                                            minYInScrollSpace: geo.frame(
-                                                in: .named(scrollSpace)
-                                            ).minY
+                                            minYInScrollSpace: minY
                                         )
                                     }
                             }
                         )
-                        if let sections = mushafIndexByPage[page], !sections.isEmpty {
+                        if !sections.isEmpty {
                             VStack(alignment: .center, spacing: 12) {
                                 ForEach(sections) { section in
                                     if section.verses.first?.id == 1 {
@@ -1037,9 +1044,6 @@ struct QuranPageView: View {
 
         .padding(.top, hiddenChromeReaderTopInset)
         .coordinateSpace(name: scrollSpace)
-        .onPreferenceChange(ReaderScrollOriginYPreferenceKey.self) { newY in
-            handleScrollOffsetGeometryChange(newY)
-        }
         .environment(\.layoutDirection, .rightToLeft)
         .onChange(of: pendingMushafScrollTargetPage) { _, page in
             guard isMushafPageMode, let page else { return }
@@ -1122,7 +1126,6 @@ struct QuranPageView: View {
             handleAutoScrollToggle(active: active, proxy: proxy)
         }
         .onChange(of: autoScrollMinutesPerPage) { _, _ in
-            // speed changes handled inside the autoScrollTask loop dynamically.
         }
         .onChange(of: fontSize) { _, newSize in
             showToast("حجم الخط: \(Int(newSize))")
@@ -1179,7 +1182,7 @@ struct QuranPageView: View {
                 HStack(spacing: 4) {
                     // Page Info
                     HStack(spacing: 2) {
-                        Text("\(storedMushafPageNumber)")
+                        Text("\(chromeMushafPageNumber)")
                             .foregroundColor(secondaryTextColor)
                         Text("ص")
                             .foregroundColor(secondaryTextColor)
@@ -1208,14 +1211,22 @@ struct QuranPageView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
 
-                if isAutoScrolling && !estimatedTimeToFinishCurrentJuzLabel.isEmpty {
-                    Text("\(estimatedTimeToFinishCurrentJuzLabel) د ")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundColor(.orange)
-                        .lineLimit(1)
+                if isAutoScrolling {
+                    RemainingTimeTicker(
+                        remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
+                        resetToken: "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
+                        prefix: "",
+                        suffix: " د",
+                        font: .system(size: 10, weight: .bold, design: .monospaced),
+                        color: .orange,
+                        minWidth: 86
+                    )
+                    .fixedSize(horizontal: true, vertical: false)
                 }
             }
             .padding(.leading, 3)
+            .lineLimit(1)
+            .minimumScaleFactor(0.68)
             .layoutPriority(1)
 
             Spacer()

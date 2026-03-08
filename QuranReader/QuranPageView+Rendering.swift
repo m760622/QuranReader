@@ -719,13 +719,26 @@ extension QuranPageView {
     }
 
     struct MushafSurahSection: Identifiable {
+        let pageNumber: Int
         let surah: Surah
         let verses: [Verse]
-        var id: Int { surah.id }
+        var id: String {
+            let firstVerseId = verses.first?.id ?? 0
+            let lastVerseId = verses.last?.id ?? 0
+            return "\(pageNumber)-\(surah.id)-\(firstVerseId)-\(lastVerseId)"
+        }
     }
 
     func mushafSurahSections(for pageNumber: Int) -> [MushafSurahSection] {
-        mushafIndexByPage[pageNumber] ?? []
+        if let cached = mushafIndexByPage[pageNumber], !cached.isEmpty {
+            return cached
+        }
+
+        return viewModel.surahs.compactMap { surah in
+            let verses = surah.verses.filter { $0.page == pageNumber }
+            guard !verses.isEmpty else { return nil }
+            return MushafSurahSection(pageNumber: pageNumber, surah: surah, verses: verses)
+        }
     }
 
     func resetPerSurahPresentationStates() {

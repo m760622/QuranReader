@@ -115,7 +115,7 @@ extension QuranPageView {
         }
 
         var body: some View {
-            LazyVStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 ForEach(pageGroups, id: \.pageNumber) { group in
                     if showsPageDividers {
                         PageDividerView(
@@ -132,12 +132,13 @@ extension QuranPageView {
                         }
                         .background(
                             GeometryReader { geo in
+                                let minY = geo.frame(in: .named(scrollSpace ?? "")).origin.y
+                                let anchorToken = Int(minY.rounded())
                                 Color.clear
-                                    .onAppear {
-                                        let y = geo.frame(in: .named(scrollSpace ?? "")).origin.y
+                                    .task(id: anchorToken) {
                                         if let scrollSpace = scrollSpace, !scrollSpace.isEmpty {
                                             DispatchQueue.main.async {
-                                                onRegisterAnchor?(group.pageNumber, y)
+                                                onRegisterAnchor?(group.pageNumber, minY)
                                             }
                                         }
                                     }

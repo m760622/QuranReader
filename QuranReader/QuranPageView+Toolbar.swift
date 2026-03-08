@@ -10,6 +10,62 @@ import SwiftUI
 // MARK: - Toolbar Views
 extension QuranPageView {
 
+    struct RemainingTimeTicker: View {
+        let remainingSeconds: Double?
+        let resetToken: String
+        let prefix: String
+        let suffix: String
+        let font: Font
+        let color: Color
+        let minWidth: CGFloat
+
+        @State private var baselineSeconds: Double?
+        @State private var baselineDate = Date()
+
+        var body: some View {
+            Group {
+                if let baselineSeconds, baselineSeconds > 0 {
+                    TimelineView(.periodic(from: baselineDate, by: 1)) { context in
+                        let elapsed = context.date.timeIntervalSince(baselineDate)
+                        let secondsLeft = max(0, baselineSeconds - elapsed)
+
+                        if secondsLeft > 0 {
+                            Text("\(prefix)\(Self.format(seconds: secondsLeft))\(suffix)")
+                                .font(font)
+                                .foregroundColor(color)
+                                .lineLimit(1)
+                                .frame(minWidth: minWidth, alignment: .leading)
+                        }
+                    }
+                }
+            }
+            .transaction { $0.animation = nil }
+            .onAppear {
+                resetBaseline()
+            }
+            .onChange(of: resetToken) { _, _ in
+                resetBaseline()
+            }
+            .onChange(of: remainingSeconds != nil) { _, hasValue in
+                if hasValue, baselineSeconds == nil {
+                    resetBaseline()
+                }
+            }
+        }
+
+        static func format(seconds: Double) -> String {
+            let total = Int(seconds.rounded())
+            let minutes = total / 60
+            let secs = total % 60
+            return String(format: "%d:%02d", minutes, secs)
+        }
+
+        private func resetBaseline() {
+            baselineDate = Date()
+            baselineSeconds = remainingSeconds
+        }
+    }
+
     // MARK: DualProgressBar
     struct DualProgressBar: View {
         let quranProgress: Double
@@ -149,6 +205,23 @@ extension QuranPageView {
             }
             .padding(.horizontal, 4)
 
+            if isAutoScrolling {
+                HStack(spacing: 6) {
+                    RemainingTimeTicker(
+                        remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
+                        resetToken: "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
+                        prefix: "",
+                        suffix: " د",
+                        font: .system(size: 10, weight: .bold, design: .monospaced),
+                        color: .orange.opacity(0.92),
+                        minWidth: 86
+                    )
+                    .fixedSize(horizontal: true, vertical: false)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+            }
+
             // Distinctive Full-Width Progress
             DualProgressBar(
                 quranProgress: viewModel.readingProgress,
@@ -230,15 +303,27 @@ extension QuranPageView {
                         Text(
                             "\(viewModel.currentSurah?.verses.count ?? 0) آية • \(currentSurahSubtitle)"
                         )
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.68)
+                        .truncationMode(.tail)
                         .foregroundColor(secondaryTextColor.opacity(0.8))
+                        .layoutPriority(1)
 
-                        if !currentJuzRemainingTimeStatusLabel.isEmpty {
-                            Text(currentJuzRemainingTimeStatusLabel)
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                .foregroundColor(.orange.opacity(0.92))
+                        if isAutoScrolling {
+                            RemainingTimeTicker(
+                                remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
+                                resetToken: "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
+                                prefix: "",
+                                suffix: " د",
+                                font: .system(size: 10, weight: .bold, design: .monospaced),
+                                color: .orange.opacity(0.92),
+                                minWidth: 86
+                            )
+                            .fixedSize(horizontal: true, vertical: false)
                         }
                     }
                     .font(.system(size: 11, weight: .medium))
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 Spacer()

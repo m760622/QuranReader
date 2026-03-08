@@ -168,6 +168,10 @@ extension QuranPageView {
         return bias
     }
 
+    var mushafPageAdvanceVisibilityThreshold: CGFloat {
+        isTopChromeCollapsed ? 120 : 150
+    }
+
     func syncVisibleMushafPageFromOffset(_ offset: Double) {
         guard Date() >= suppressChromeScrollUntil else { return }
 
@@ -194,12 +198,19 @@ extension QuranPageView {
         let sortedAnchors = mushafPageAnchorYByPage.sorted { $0.value < $1.value }
         guard let first = sortedAnchors.first else { return }
 
-        var candidate = first
-        for anchor in sortedAnchors where anchor.value <= referenceY {
-            candidate = anchor
+        var candidateIndex = 0
+        for (index, anchor) in sortedAnchors.enumerated() where anchor.value <= referenceY {
+            candidateIndex = index
         }
 
-        let candidatePage = candidate.key
+        let candidatePage: Int
+        if let nextAnchor = sortedAnchors[safe: candidateIndex + 1],
+            (nextAnchor.value - referenceY) <= mushafPageAdvanceVisibilityThreshold
+        {
+            candidatePage = nextAnchor.key
+        } else {
+            candidatePage = sortedAnchors[candidateIndex].key
+        }
         syncVisibleMushafPage(candidatePage)
     }
 
