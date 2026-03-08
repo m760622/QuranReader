@@ -1061,9 +1061,7 @@ struct QuranPageView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         suppressChromeScrollUntil = Date().addingTimeInterval(0.55)
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            isTopChromeCollapsed.toggle()
-                        }
+                        isTopChromeCollapsed.toggle()
                     }
             )
         }
@@ -1182,7 +1180,6 @@ struct QuranPageView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             if isFocusMode {
                 focusModeQuickActions
-                    .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
     }
@@ -1402,24 +1399,19 @@ struct QuranPageView: View {
                     ZStack(alignment: .top) {
                         if isTopChromeCollapsed {
                             collapsedTopHandle
-                                .transition(.move(edge: .top).combined(with: .opacity))
                         } else {
                             VStack(spacing: 0) {
                                 topNavigationBar
 
                                 if showQuickNavigator {
                                     quickNavigatorPanel
-                                        .transition(.move(edge: .top).combined(with: .opacity))
                                 }
                             }
-                            .transition(.move(edge: .top).combined(with: .opacity))
                         }
                     }
                     .zIndex(1)
                 }
             }
-            .animation(.spring(response: 0.4, dampingFraction: 0.82), value: isTopChromeCollapsed)
-            .animation(.spring(response: 0.4, dampingFraction: 0.82), value: showQuickNavigator)
 
             readerContent(for: surah)
         }

@@ -9,6 +9,7 @@ import SwiftUI
 
 // MARK: - Toolbar Views
 extension QuranPageView {
+    var stableTopChromeHeight: CGFloat { 78 }
 
     struct RemainingTimeTicker: View {
         let remainingSeconds: Double?
@@ -134,7 +135,7 @@ extension QuranPageView {
                                 .font(.system(size: 8, weight: .bold))
                         }
                         .foregroundColor(primaryGreen)
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, 3)
                         .padding(.vertical, 4)
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -161,18 +162,36 @@ extension QuranPageView {
                         .foregroundColor(primaryGreen)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, 3)
                         .padding(.vertical, 4)
                         .background(
                             Capsule().fill(primaryGreen.opacity(0.1))
                         )
+                    
+                    if isAutoScrolling {
+                        HStack(spacing: 6) {
+                            RemainingTimeTicker(
+                                remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
+                                resetToken: "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
+                                prefix: "",
+                                suffix: " د",
+                                font: .system(size: 10, weight: .bold, design: .monospaced),
+                                color: .orange.opacity(0.92),
+                                minWidth: 86
+                            )
+                            .fixedSize(horizontal: true, vertical: false)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 3)
+                    }
+
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer()
 
                 // Quick Actions - Now on the LEFT (Last in RTL HStack)
-                HStack(spacing: 8) {
+                HStack(spacing: 3) {
                     // Bookmarks
                     Button {
                         showVerseBookmarksList = true
@@ -207,26 +226,11 @@ extension QuranPageView {
                         toolbarIcon(
                             isAutoScrolling ? "pause.fill" : "play.fill", tint: primaryGreen)
                     }
+                    
                 }
             }
             .padding(.horizontal, 4)
 
-            if isAutoScrolling {
-                HStack(spacing: 6) {
-                    RemainingTimeTicker(
-                        remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
-                        resetToken: "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
-                        prefix: "",
-                        suffix: " د",
-                        font: .system(size: 10, weight: .bold, design: .monospaced),
-                        color: .orange.opacity(0.92),
-                        minWidth: 86
-                    )
-                    .fixedSize(horizontal: true, vertical: false)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
-            }
 
             // Distinctive Full-Width Progress
             DualProgressBar(
@@ -243,6 +247,7 @@ extension QuranPageView {
         .padding(.horizontal, 14)
         .padding(.top, 8)
         .padding(.bottom, 6)
+        .frame(height: stableTopChromeHeight, alignment: .top)
         .background(backgroundColor)
         .overlay(Divider().opacity(0.35), alignment: .bottom)  // Soften Divider
         .environment(\.layoutDirection, .rightToLeft)
@@ -306,6 +311,18 @@ extension QuranPageView {
                     }
 
                     HStack(spacing: 6) {
+                        // Page Number Pill
+                            Text("ص \(chromeMushafPageNumber)")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(primaryGreen)
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
+                                .padding(.horizontal, 3)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule().fill(primaryGreen.opacity(0.1))
+                                )
+
                         Text(
                             "\(viewModel.currentSurah?.verses.count ?? 0) آية • \(currentSurahSubtitle)"
                         )
@@ -340,10 +357,10 @@ extension QuranPageView {
             .padding(.top, 10)
             .padding(.bottom, 8)
 
+            /*
             // Row 2: Streamlined Premium Ribbon
             HStack(spacing: 12) {
                 standardPagerControl
-
                 // Contemporary Slider — always in mushaf-page space
                 Slider(
                     value: Binding(
@@ -381,6 +398,7 @@ extension QuranPageView {
             .padding(.horizontal, 10)
             .padding(.bottom, 10)
 
+            */
             // Row 3: Visual Progress (Ghost Bar)
             DualProgressBar(
                 quranProgress: viewModel.readingProgress,
@@ -392,6 +410,7 @@ extension QuranPageView {
             .padding(.horizontal, 10)
             .padding(.bottom, 8)
         }
+        .frame(height: stableTopChromeHeight, alignment: .top)
         .environment(\.layoutDirection, .rightToLeft)
     }
 
@@ -504,7 +523,7 @@ extension QuranPageView {
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
             .foregroundColor(dualTone ? .white : tint)
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 3)
             .padding(.vertical, 4)
             .background(
                 dualTone

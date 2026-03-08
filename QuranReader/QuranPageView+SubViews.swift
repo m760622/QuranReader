@@ -861,13 +861,30 @@ extension QuranPageView {
                 )
             }
 
+            final class StableLayoutTextView: UITextView {
+                private(set) var stableLayoutWidth: CGFloat = 0
+
+                func applyStableLayoutWidth(_ width: CGFloat) {
+                    let screenScale = window?.screen.scale ?? UIScreen.main.scale
+                    let snappedWidth = floor(width * screenScale) / screenScale
+                    guard snappedWidth.isFinite, snappedWidth > 0 else { return }
+                    guard abs(stableLayoutWidth - snappedWidth) > 0.25 else { return }
+
+                    stableLayoutWidth = snappedWidth
+                    textContainer.size = CGSize(
+                        width: snappedWidth,
+                        height: CGFloat.greatestFiniteMagnitude
+                    )
+                }
+            }
+
             func makeUIView(context: Context) -> UITextView {
-                let textView: UITextView
+                let textView: StableLayoutTextView
                 if #available(iOS 16.0, *) {
                     // We rely on NSLayoutManager APIs for precise verse targeting.
-                    textView = UITextView(usingTextLayoutManager: false)
+                    textView = StableLayoutTextView(usingTextLayoutManager: false)
                 } else {
-                    textView = UITextView()
+                    textView = StableLayoutTextView()
                 }
                 textView.isEditable = false
                 textView.isSelectable = false
@@ -884,6 +901,7 @@ extension QuranPageView {
                 textView.adjustsFontForContentSizeCategory = true
                 textView.semanticContentAttribute = .forceRightToLeft
                 textView.textAlignment = .justified
+                textView.layoutManager.allowsNonContiguousLayout = false
                 textView.linkTextAttributes = [
                     .underlineStyle: 0
                 ]
@@ -942,7 +960,6 @@ extension QuranPageView {
                     if !uiView.attributedText.isEqual(to: newText) {
                         uiView.attributedText = newText
                         uiView.setNeedsLayout()
-                        uiView.layoutIfNeeded()
                     }
                 }
 
@@ -955,6 +972,9 @@ extension QuranPageView {
                 context: Context
             ) -> CGSize? {
                 guard let width = proposal.width else { return nil }
+                if let stableTextView = uiView as? StableLayoutTextView {
+                    stableTextView.applyStableLayoutWidth(width)
+                }
                 let fitting = uiView.sizeThatFits(
                     CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
                 )
