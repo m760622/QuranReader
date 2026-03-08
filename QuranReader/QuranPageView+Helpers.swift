@@ -130,9 +130,7 @@ extension QuranPageView {
                 .onChange(of: viewModel.coreLoadStage) { _, newStage in
                     guard newStage == .loaded else { return }
                     rebuildMushafIndex()
-                    if isMushafPageMode {
-                        handleReaderModeDidChange()
-                    } else {
+                    if !isMushafPageMode {
                         currentStandardPage = viewModel.currentMushafPage
                         jumpSliderValue = Double(viewModel.currentMushafPage)
                     }

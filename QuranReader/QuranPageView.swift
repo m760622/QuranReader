@@ -169,10 +169,11 @@ func buildReaderCustomFontSections() -> [ReaderCustomFontSection] {
         sections.append(ReaderCustomFontSection(title: "موصى بها", fonts: sortedRecommended))
     }
 
-    sections.append(contentsOf: orderedTitles.compactMap { title in
-        guard let fonts = buckets[title], !fonts.isEmpty else { return nil }
-        return ReaderCustomFontSection(title: title, fonts: fonts)
-    })
+    sections.append(
+        contentsOf: orderedTitles.compactMap { title in
+            guard let fonts = buckets[title], !fonts.isEmpty else { return nil }
+            return ReaderCustomFontSection(title: title, fonts: fonts)
+        })
 
     return sections
 }
@@ -598,9 +599,10 @@ struct QuranPageView: View {
     func visibleMushafPageCandidateForChrome() -> Int? {
         guard !mushafPageAnchorYByPage.isEmpty else { return nil }
 
-        let offset = resolvedScrollView.map {
-            Double(max(0, $0.contentOffset.y + $0.adjustedContentInset.top))
-        } ?? viewModel.lastScrollOffset
+        let offset =
+            resolvedScrollView.map {
+                Double(max(0, $0.contentOffset.y + $0.adjustedContentInset.top))
+            } ?? viewModel.lastScrollOffset
         let referenceY = CGFloat(offset) + hiddenChromeReaderTopInset + mushafPageTrackingTopBias
         let sortedAnchors = mushafPageAnchorYByPage.sorted { $0.value < $1.value }
         guard !sortedAnchors.isEmpty else { return nil }
@@ -673,9 +675,12 @@ struct QuranPageView: View {
     }
 
     var autoScrollSpeedLevel: Int {
-        guard let nearest = autoScrollSpeedPresets.enumerated().min(by: {
-            abs($0.element - autoScrollMinutesPerPage) < abs($1.element - autoScrollMinutesPerPage)
-        }) else {
+        guard
+            let nearest = autoScrollSpeedPresets.enumerated().min(by: {
+                abs($0.element - autoScrollMinutesPerPage)
+                    < abs($1.element - autoScrollMinutesPerPage)
+            })
+        else {
             return 0
         }
         return nearest.offset
@@ -745,9 +750,10 @@ struct QuranPageView: View {
             return CGFloat(max(0, currentPage - 1)) * estimatedPageHeight
         }()
 
-        let offset = resolvedScrollView.map {
-            Double(max(0, $0.contentOffset.y + $0.adjustedContentInset.top))
-        } ?? viewModel.lastScrollOffset
+        let offset =
+            resolvedScrollView.map {
+                Double(max(0, $0.contentOffset.y + $0.adjustedContentInset.top))
+            } ?? viewModel.lastScrollOffset
         let referenceY = CGFloat(offset)
         let consumedPoints = min(max(referenceY - pageTopY, 0), estimatedPageHeight)
         let remainingPoints = max(0, estimatedPageHeight - consumedPoints)
@@ -963,11 +969,23 @@ struct QuranPageView: View {
                         }
                         .onAppear {
                             captureLaunchCheckpointIfNeeded()
-                            initialRestoreTask?.cancel()
-                            initialRestoreTask = Task { @MainActor in
-                                try? await Task.sleep(nanoseconds: 100_000_000)
-                                guard !Task.isCancelled else { return }
-                                performInitialMushafScrollIfNeeded(proxy: proxy)
+                            if viewModel.coreLoadStage == .loaded {
+                                initialRestoreTask?.cancel()
+                                initialRestoreTask = Task { @MainActor in
+                                    try? await Task.sleep(nanoseconds: 100_000_000)
+                                    guard !Task.isCancelled else { return }
+                                    performInitialMushafScrollIfNeeded(proxy: proxy)
+                                }
+                            }
+                        }
+                        .onChange(of: viewModel.coreLoadStage) { _, stage in
+                            if stage == .loaded {
+                                initialRestoreTask?.cancel()
+                                initialRestoreTask = Task { @MainActor in
+                                    try? await Task.sleep(nanoseconds: 100_000_000)
+                                    guard !Task.isCancelled else { return }
+                                    performInitialMushafScrollIfNeeded(proxy: proxy)
+                                }
                             }
                         }
                 }
@@ -1047,7 +1065,7 @@ struct QuranPageView: View {
                         titleFontName: resolvedSurahTitleFontName,
                         basmalaFontName: resolvedBasmalaFontName
                     )
-                        .padding(.top, isFocusMode ? 18 : 6)
+                    .padding(.top, isFocusMode ? 18 : 6)
 
                     quranTextBox(surah: surah)
                 }
@@ -1201,10 +1219,10 @@ struct QuranPageView: View {
                             .font(.system(size: 8, weight: .bold))
                     }
                     .foregroundColor(primaryGreen)
-               //     .frame(maxWidth: .infinity, alignment: .trailing)
+                    //     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .buttonStyle(.plain)
-            //    .frame(maxWidth: .infinity, alignment: .trailing)
+                //    .frame(maxWidth: .infinity, alignment: .trailing)
                 .layoutPriority(2)
 
                 HStack(spacing: 4) {
@@ -1239,7 +1257,8 @@ struct QuranPageView: View {
 
                         RemainingTimeTicker(
                             remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
-                            resetToken: "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
+                            resetToken:
+                                "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
                             prefix: "",
                             suffix: " د",
                             font: .system(size: 9, weight: .bold, design: .monospaced),
@@ -1252,12 +1271,12 @@ struct QuranPageView: View {
                 .font(.system(size: 9, weight: .bold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-             //   .frame(maxWidth: .infinity, alignment: .trailing)
+                //   .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .lineLimit(1)
             .minimumScaleFactor(0.68)
             .layoutPriority(1)
-          //  .frame(maxWidth: .infinity, alignment: .trailing)
+            //  .frame(maxWidth: .infinity, alignment: .trailing)
 
             Spacer()
 
@@ -1322,7 +1341,7 @@ struct QuranPageView: View {
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 10)
-        .frame(maxWidth: .infinity, alignment: .trailing) //Fix imp 
+        .frame(maxWidth: .infinity, alignment: .trailing)  //Fix imp
         .background(backgroundColor.opacity(0.95))
         .overlay(Divider().opacity(0.10), alignment: .bottom)
     }

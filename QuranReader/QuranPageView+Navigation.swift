@@ -293,7 +293,8 @@ extension QuranPageView {
                     section.surah.id == targetSurahId
                         && section.verses.contains(where: { $0.id == targetVerseId })
                 }),
-                let targetSurahIndex = viewModel.surahs.firstIndex(where: { $0.id == targetSurahId })
+                let targetSurahIndex = viewModel.surahs.firstIndex(where: { $0.id == targetSurahId }
+                )
             {
                 if viewModel.currentSurahIndex != targetSurahIndex {
                     self.viewModel.currentSurahIndex = targetSurahIndex
@@ -304,7 +305,9 @@ extension QuranPageView {
                 return
             }
 
-            if let surahIndex = viewModel.surahs.firstIndex(where: { $0.id == firstSection.surah.id }) {
+            if let surahIndex = viewModel.surahs.firstIndex(where: {
+                $0.id == firstSection.surah.id
+            }) {
                 if viewModel.currentSurahIndex != surahIndex {
                     self.viewModel.currentSurahIndex = surahIndex
                 }
@@ -364,7 +367,12 @@ extension QuranPageView {
 
     func applyLaunchRestoreNavigationIfNeeded() {
         guard !hasAppliedLaunchRestoreNavigation else { return }
-        guard let checkpointSurahIndex = checkpointRestoreSurahIndex else { return }
+
+        guard let checkpointSurahIndex = checkpointRestoreSurahIndex else {
+            hasAppliedLaunchRestoreNavigation = true
+            return
+        }
+
         guard viewModel.surahs.indices.contains(checkpointSurahIndex) else { return }
 
         let targetVerseId =
