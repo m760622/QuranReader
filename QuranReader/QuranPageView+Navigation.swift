@@ -196,7 +196,7 @@ extension QuranPageView {
         let referenceY = CGFloat(offset) + hiddenChromeReaderTopInset + mushafPageTrackingTopBias
 
         let sortedAnchors = mushafPageAnchorYByPage.sorted { $0.value < $1.value }
-        guard let first = sortedAnchors.first else { return }
+        guard !sortedAnchors.isEmpty else { return }
 
         var candidateIndex = 0
         for (index, anchor) in sortedAnchors.enumerated() where anchor.value <= referenceY {

@@ -603,7 +603,7 @@ struct QuranPageView: View {
         } ?? viewModel.lastScrollOffset
         let referenceY = CGFloat(offset) + hiddenChromeReaderTopInset + mushafPageTrackingTopBias
         let sortedAnchors = mushafPageAnchorYByPage.sorted { $0.value < $1.value }
-        guard let first = sortedAnchors.first else { return nil }
+        guard !sortedAnchors.isEmpty else { return nil }
 
         var candidateIndex = 0
         for (index, anchor) in sortedAnchors.enumerated() where anchor.value <= referenceY {
