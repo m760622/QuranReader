@@ -863,9 +863,12 @@ extension QuranPageView {
 
             final class StableLayoutTextView: UITextView {
                 private(set) var stableLayoutWidth: CGFloat = 0
+                private var lastLoggedWidth: CGFloat = 0
 
                 func applyStableLayoutWidth(_ width: CGFloat) {
-                    let screenScale = window?.screen.scale ?? UIScreen.main.scale
+                    let screenScale = window?.windowScene?.screen.scale
+                        ?? window?.screen.scale
+                        ?? traitCollection.displayScale
                     let snappedWidth = floor(width * screenScale) / screenScale
                     guard snappedWidth.isFinite, snappedWidth > 0 else { return }
                     guard abs(stableLayoutWidth - snappedWidth) > 0.25 else { return }
@@ -875,6 +878,15 @@ extension QuranPageView {
                         width: snappedWidth,
                         height: CGFloat.greatestFiniteMagnitude
                     )
+
+#if DEBUG
+                    if abs(lastLoggedWidth - snappedWidth) > 0.25 {
+                        lastLoggedWidth = snappedWidth
+                        print(
+                            "MUSHAF_LAYOUT width=\(String(format: "%.2f", snappedWidth)) bounds=\(String(format: "%.2f", bounds.width)) frame=\(String(format: "%.2f", frame.width)) inset=\(String(format: "%.2f", textContainerInset.left + textContainerInset.right))"
+                        )
+                    }
+#endif
                 }
             }
 

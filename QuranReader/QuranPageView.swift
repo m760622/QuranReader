@@ -1033,6 +1033,7 @@ struct QuranPageView: View {
                                     )
                                 }
                             }
+                            .frame(maxWidth: .infinity)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 14)
                             .background(panelSurfaceBackground(cornerRadius: 20))

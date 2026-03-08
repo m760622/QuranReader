@@ -590,6 +590,7 @@ extension QuranPageView {
                 .padding(.bottom, 12)
             }
         }
+        .frame(maxWidth: .infinity)
         .environment(\.layoutDirection, .rightToLeft)
     }
 
@@ -716,6 +717,7 @@ extension QuranPageView {
                 setPendingMushafNavigationTarget(surahId: nil, verseId: nil)
             }
         )
+        .frame(maxWidth: .infinity)
     }
 
     struct MushafSurahSection: Identifiable {

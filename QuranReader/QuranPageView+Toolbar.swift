@@ -177,7 +177,7 @@ extension QuranPageView {
                                 suffix: " د",
                                 font: .system(size: 10, weight: .bold, design: .monospaced),
                                 color: .orange.opacity(0.92),
-                                minWidth: 86
+                                minWidth: 50
                             )
                             .fixedSize(horizontal: true, vertical: false)
                         }
@@ -340,7 +340,7 @@ extension QuranPageView {
                                 suffix: " د",
                                 font: .system(size: 10, weight: .bold, design: .monospaced),
                                 color: .orange.opacity(0.92),
-                                minWidth: 86
+                                minWidth: 50
                             )
                             .fixedSize(horizontal: true, vertical: false)
                         }
