@@ -37,6 +37,12 @@ extension QuranPageView {
                                 .frame(minWidth: minWidth, alignment: .leading)
                         }
                     }
+                } else if let remainingSeconds, remainingSeconds > 0 {
+                    Text("\(prefix)\(Self.format(seconds: remainingSeconds))\(suffix)")
+                        .font(font)
+                        .foregroundColor(color)
+                        .lineLimit(1)
+                        .frame(minWidth: minWidth, alignment: .leading)
                 }
             }
             .transaction { $0.animation = nil }
@@ -46,8 +52,8 @@ extension QuranPageView {
             .onChange(of: resetToken) { _, _ in
                 resetBaseline()
             }
-            .onChange(of: remainingSeconds != nil) { _, hasValue in
-                if hasValue, baselineSeconds == nil {
+            .onChange(of: remainingSeconds) { _, newValue in
+                if baselineSeconds == nil, let newValue, newValue > 0 {
                     resetBaseline()
                 }
             }

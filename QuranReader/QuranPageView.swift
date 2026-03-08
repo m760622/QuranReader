@@ -631,11 +631,18 @@ struct QuranPageView: View {
             ?? surah.verses.first
     }
 
-    var currentJuzLabel: String {
+    var currentJuzNumberForChrome: Int? {
         if let juz = chromeVerseForReadingContext?.juz?.number {
-            return "الجزء \(juz)"
+            return juz
         }
         if let juz = viewModel.currentSurah?.juzNumbers?.first {
+            return juz
+        }
+        return nil
+    }
+
+    var currentJuzLabel: String {
+        if let juz = currentJuzNumberForChrome {
             return "الجزء \(juz)"
         }
         return "الجزء -"
@@ -692,8 +699,7 @@ struct QuranPageView: View {
     var estimatedTimeToFinishCurrentJuzSeconds: Double? {
         guard
             isAutoScrolling,
-            let verse = chromeVerseForReadingContext,
-            let juzNumber = verse.juz?.number,
+            let juzNumber = currentJuzNumberForChrome,
             let pageBounds = juzPageBoundsByNumber[juzNumber]
         else {
             return nil
