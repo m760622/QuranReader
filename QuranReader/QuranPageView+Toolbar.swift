@@ -118,9 +118,9 @@ extension QuranPageView {
     // MARK: - Collapsed Top Handle
     var collapsedTopHandle: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 // Title & Context Section - Now on the RIGHT (First in RTL HStack)
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Button {
                         showSurahList = true
                         lightHaptic()
@@ -156,34 +156,33 @@ extension QuranPageView {
                         dualTone: true
                     )
 
-                // Page Number Pill
+                    // Page Number Pill
                     Text("ص \(chromeMushafPageNumber)")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(primaryGreen)
                         .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
+                        .minimumScaleFactor(0.8)
                         .padding(.horizontal, 3)
                         .padding(.vertical, 4)
                         .background(
                             Capsule().fill(primaryGreen.opacity(0.1))
                         )
-                    
-                    if isAutoScrolling {
-                        HStack(spacing: 6) {
-                            RemainingTimeTicker(
-                                remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
-                                resetToken: "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
-                                prefix: "",
-                                suffix: " د",
-                                font: .system(size: 10, weight: .bold, design: .monospaced),
-                                color: .orange.opacity(0.92),
-                                minWidth: 50
-                            )
-                            .fixedSize(horizontal: true, vertical: false)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 3)
+
+                    HStack(spacing: 6) {
+                        RemainingTimeTicker(
+                            remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
+                            resetToken:
+                                "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
+                            prefix: "",
+                            suffix: " د",
+                            font: .system(size: 10, weight: .bold, design: .monospaced),
+                            color: .orange.opacity(0.92),
+                            minWidth: 40
+                        )
+                        .minimumScaleFactor(0.8)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 2)
 
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -191,23 +190,9 @@ extension QuranPageView {
                 Spacer()
 
                 // Quick Actions - Now on the LEFT (Last in RTL HStack)
-                HStack(spacing: 3) {
-                    // Bookmarks
-                    Button {
-                        showVerseBookmarksList = true
-                        lightHaptic()
-                    } label: {
-                        toolbarIcon("bookmark.fill", tint: .orange)
-                    }
-
-                    // Search
-                    Button {
-                        searchScope = .quran
-                        showSearch = true
-                        lightHaptic()
-                    } label: {
-                        toolbarIcon("magnifyingglass", tint: primaryGreen)
-                    }
+                HStack(spacing: 6) {
+                    autoScrollSpeedControl
+                        .layoutPriority(1)
 
                     // Auto-Scroll Play/Pause
                     Button {
@@ -226,11 +211,9 @@ extension QuranPageView {
                         toolbarIcon(
                             isAutoScrolling ? "pause.fill" : "play.fill", tint: primaryGreen)
                     }
-                    
                 }
             }
             .padding(.horizontal, 4)
-
 
             // Distinctive Full-Width Progress
             DualProgressBar(
@@ -305,23 +288,23 @@ extension QuranPageView {
                             Text(currentHizbLabel)
                                 .font(.system(size: 9).weight(.semibold))
                                 .lineLimit(1)
-                                .fixedSize(horizontal: true, vertical: false)
+                                .minimumScaleFactor(0.8)
                                 .foregroundColor(secondaryTextColor)
                         }
                     }
 
                     HStack(spacing: 6) {
                         // Page Number Pill
-                            Text("ص \(chromeMushafPageNumber)")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(primaryGreen)
-                                .lineLimit(1)
-                                .fixedSize(horizontal: true, vertical: false)
-                                .padding(.horizontal, 3)
-                                .padding(.vertical, 4)
-                                .background(
-                                    Capsule().fill(primaryGreen.opacity(0.1))
-                                )
+                        Text("ص \(chromeMushafPageNumber)")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(primaryGreen)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .padding(.horizontal, 3)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule().fill(primaryGreen.opacity(0.1))
+                            )
 
                         Text(
                             "\(viewModel.currentSurah?.verses.count ?? 0) آية • \(currentSurahSubtitle)"
@@ -335,14 +318,15 @@ extension QuranPageView {
                         if isAutoScrolling {
                             RemainingTimeTicker(
                                 remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
-                                resetToken: "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
+                                resetToken:
+                                    "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
                                 prefix: "",
                                 suffix: " د",
                                 font: .system(size: 10, weight: .bold, design: .monospaced),
                                 color: .orange.opacity(0.92),
-                                minWidth: 50
+                                minWidth: 40
                             )
-                            .fixedSize(horizontal: true, vertical: false)
+                            .minimumScaleFactor(0.8)
                         }
                     }
                     .font(.system(size: 11, weight: .medium))
@@ -397,7 +381,7 @@ extension QuranPageView {
             )
             .padding(.horizontal, 10)
             .padding(.bottom, 10)
-
+            
             */
             // Row 3: Visual Progress (Ghost Bar)
             DualProgressBar(
@@ -585,5 +569,70 @@ extension QuranPageView {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Auto Scroll Speed Slider
+    var autoScrollSpeedControl: some View {
+        HStack(spacing: 6) {
+            Text("0")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundColor(textColor.opacity(0.65))
+                .frame(width: 10)
+
+            GeometryReader { geometry in
+                let thumbWidth: CGFloat = 20
+                let thumbHeight: CGFloat = 20
+                let segmentCount = max(autoScrollSpeedPresets.count - 1, 1)
+                let usableWidth = max(geometry.size.width - thumbWidth, 1)
+                let stepWidth = usableWidth / CGFloat(segmentCount)
+                let level = autoScrollSpeedLevel
+                let thumbOffset = CGFloat(level) * stepWidth
+
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(textColor.opacity(0.12))
+
+                    Capsule()
+                        .fill(Color.orange.opacity(0.26))
+                        .frame(width: thumbOffset + (thumbWidth / 2))
+
+                    ForEach(1..<segmentCount, id: \.self) { segment in
+                        Rectangle()
+                            .fill(textColor.opacity(0.18))
+                            .frame(width: 1, height: 10)
+                            .offset(x: CGFloat(segment) * stepWidth + (thumbWidth / 2))
+                    }
+
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.white.opacity(0.96))
+                        .frame(width: thumbWidth, height: thumbHeight)
+                        .shadow(color: Color.black.opacity(0.10), radius: 4, x: 0, y: 1)
+                        .offset(x: thumbOffset)
+                }
+                .frame(height: 20)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let proposed = ((value.location.x - (thumbWidth / 2)) / stepWidth)
+                                .rounded()
+                            let newLevel = min(
+                                max(Int(proposed), 0),
+                                autoScrollSpeedPresets.count - 1
+                            )
+                            guard newLevel != autoScrollSpeedLevel else { return }
+                            setAutoScrollSpeedLevel(newLevel)
+                            lightHaptic()
+                        }
+                )
+            }
+            .frame(width: 86, height: 20)
+
+            Text("7")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundColor(textColor.opacity(0.65))
+                .frame(width: 10)
+        }
+        .environment(\.layoutDirection, .leftToRight)
     }
 }

@@ -36,6 +36,9 @@ extension QuranPageView {
     }
 
     func handleAutoScrollToggle(active: Bool, proxy: ScrollViewProxy) {
+        print(
+            "AUTO_SCROLL: handleAutoScrollToggle(active: \(active)) called. Current Page: \(chromeMushafPageNumber), isAutoScrolling = \(isAutoScrolling)"
+        )
         autoScrollTask?.cancel()
         autoScrollTask = nil
         autoScrollAdvancingSurah = false
@@ -55,6 +58,9 @@ extension QuranPageView {
         }
 
         autoScrollTask = Task {
+            // Wait for toolbar collapse animation to finish before scrolling
+            try? await Task.sleep(nanoseconds: 250_000_000)
+
             while !Task.isCancelled {
                 let minutesPerPage: Double = await MainActor.run { autoScrollMinutesPerPage }
                 let updatesPerSecond: Double = await MainActor.run { reduceMotion ? 20.0 : 30.0 }
@@ -227,6 +233,7 @@ extension QuranPageView {
         let isPendingTargetMatch: Bool
         if let targetPage = pendingMushafScrollTargetPage {
             if page == targetPage {
+                print("MUSHAF_NAV: Matched pending target page \(targetPage). Clearing.")
                 pendingMushafScrollTargetPage = nil
                 isPendingTargetMatch = true
             } else {
@@ -328,7 +335,6 @@ extension QuranPageView {
         lastReaderScrollDelta = delta
         syncVisibleMushafPageFromOffset(offset)
 
-        guard !isFocusMode else { return }
         guard Date() >= suppressChromeScrollUntil else { return }
         guard abs(delta) > 10 else { return }
 
@@ -441,10 +447,8 @@ extension QuranPageView {
             try? await Task.sleep(nanoseconds: 700_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run {
-                if !isFocusMode {
-                    animateFloating(.easeInOut(duration: 0.18)) {
-                        isFloatingMenuHiddenByScroll = false
-                    }
+                animateFloating(.easeInOut(duration: 0.18)) {
+                    isFloatingMenuHiddenByScroll = false
                 }
             }
         }

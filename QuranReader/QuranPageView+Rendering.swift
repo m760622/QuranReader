@@ -191,7 +191,6 @@ extension QuranPageView {
         withAnimation(.easeInOut(duration: 0.18)) {
             showQuickNavigator = false
             showFloatingActions = false
-            isFocusMode = true
             isTopChromeCollapsed = true
         }
     }
@@ -634,13 +633,12 @@ extension QuranPageView {
             chunkSize: chunkSize,
             contextMenuEnabled: verseContextMenusEnabled,
             showsPageDividers: showsPageDividers,
-            isFocusMode: isFocusMode,
             horizontalPadding: horizontalPadding,
             onVerseTap: { _ in
                 lastInteractiveTapAt = Date()
 
-                // In focus mode, tap toggles auto-scroll play/pause.
-                if isFocusMode {
+                // When auto-scrolling, tap toggles auto-scroll play/pause.
+                if isAutoScrolling {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isAutoScrolling.toggle()
                     }
@@ -905,7 +903,8 @@ extension QuranPageView {
 
             func attach(to scrollView: UIScrollView) {
                 guard observedScrollView !== scrollView else { return }
-                observedScrollView?.removeObserver(self, forKeyPath: #keyPath(UIScrollView.contentOffset))
+                observedScrollView?.removeObserver(
+                    self, forKeyPath: #keyPath(UIScrollView.contentOffset))
                 observedScrollView = scrollView
                 scrollView.addObserver(
                     self,
@@ -916,7 +915,8 @@ extension QuranPageView {
             }
 
             deinit {
-                observedScrollView?.removeObserver(self, forKeyPath: #keyPath(UIScrollView.contentOffset))
+                observedScrollView?.removeObserver(
+                    self, forKeyPath: #keyPath(UIScrollView.contentOffset))
             }
 
             override func observeValue(
@@ -930,7 +930,8 @@ extension QuranPageView {
                 else {
                     return
                 }
-                let offset = Double(max(0, scrollView.contentOffset.y + scrollView.adjustedContentInset.top))
+                let offset = Double(
+                    max(0, scrollView.contentOffset.y + scrollView.adjustedContentInset.top))
                 DispatchQueue.main.async { [onScroll] in
                     onScroll(offset)
                 }

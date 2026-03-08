@@ -66,7 +66,6 @@ extension QuranPageView {
         let chunkSize: Int
         let contextMenuEnabled: Bool
         let showsPageDividers: Bool
-        let isFocusMode: Bool
         let horizontalPadding: CGFloat
         let onVerseTap: (Verse) -> Void
         let onShowTafsir: (Verse) -> Void
@@ -124,7 +123,7 @@ extension QuranPageView {
                             primaryGreen: primaryGreen,
                             isNightMode: isNightMode,
                             isFirstPage: false,  // Simplified for performance
-                            isHidden: isFocusMode
+                            isHidden: false
                         )
                         .id("DIV_S\(surahId)_P\(group.pageNumber)")
                         .onAppear {
@@ -685,7 +684,8 @@ extension QuranPageView {
             return ranges.isEmpty ? nil : ranges
         }
 
-        func normalizedArabicIndexMap(for text: String) -> (normalized: String, map: [String.Index]) {
+        func normalizedArabicIndexMap(for text: String) -> (normalized: String, map: [String.Index])
+        {
             var normalized = ""
             var map: [String.Index] = []
             var lastWasWhitespace = false
@@ -866,7 +866,8 @@ extension QuranPageView {
                 private var lastLoggedWidth: CGFloat = 0
 
                 func applyStableLayoutWidth(_ width: CGFloat) {
-                    let screenScale = window?.windowScene?.screen.scale
+                    let screenScale =
+                        window?.windowScene?.screen.scale
                         ?? window?.screen.scale
                         ?? traitCollection.displayScale
                     let snappedWidth = floor(width * screenScale) / screenScale
@@ -879,14 +880,14 @@ extension QuranPageView {
                         height: CGFloat.greatestFiniteMagnitude
                     )
 
-#if DEBUG
-                    if abs(lastLoggedWidth - snappedWidth) > 0.25 {
-                        lastLoggedWidth = snappedWidth
-                        print(
-                            "MUSHAF_LAYOUT width=\(String(format: "%.2f", snappedWidth)) bounds=\(String(format: "%.2f", bounds.width)) frame=\(String(format: "%.2f", frame.width)) inset=\(String(format: "%.2f", textContainerInset.left + textContainerInset.right))"
-                        )
-                    }
-#endif
+                    #if DEBUG
+                        if abs(lastLoggedWidth - snappedWidth) > 0.25 {
+                            lastLoggedWidth = snappedWidth
+                            print(
+                                "MUSHAF_LAYOUT width=\(String(format: "%.2f", snappedWidth)) bounds=\(String(format: "%.2f", bounds.width)) frame=\(String(format: "%.2f", frame.width)) inset=\(String(format: "%.2f", textContainerInset.left + textContainerInset.right))"
+                            )
+                        }
+                    #endif
                 }
             }
 
@@ -1112,7 +1113,8 @@ extension QuranPageView {
                         refreshedRect.origin.x += textView.textContainerInset.left
                         refreshedRect.origin.y += textView.textContainerInset.top
 
-                        let refreshedRectInScrollView = textView.convert(refreshedRect, to: scrollView)
+                        let refreshedRectInScrollView = textView.convert(
+                            refreshedRect, to: scrollView)
                         let refinedOffsetY = max(
                             -scrollView.adjustedContentInset.top,
                             refreshedRectInScrollView.minY - 18
@@ -1125,8 +1127,9 @@ extension QuranPageView {
                             targetRange,
                             in: textView,
                             scrollView: scrollView
-                        ), targetSelection.usedHighlightedRange
-                            || !self.preferHighlightedRangeForPreciseScroll
+                        ),
+                            targetSelection.usedHighlightedRange
+                                || !self.preferHighlightedRangeForPreciseScroll
                         {
                             self.onPreciseScrollCompleted?()
                         } else {
@@ -1163,12 +1166,15 @@ extension QuranPageView {
                         onPreciseScrollCompleted?()
                         return
                     }
-                    guard let textView, let scrollView = containingReaderScrollView(startingAt: textView)
+                    guard let textView,
+                        let scrollView = containingReaderScrollView(startingAt: textView)
                     else { return }
-                    guard let targetSelection = preferredPreciseScrollSelection(
-                        in: textView.attributedText,
-                        fallbackURL: fallbackURL
-                    ) else { return }
+                    guard
+                        let targetSelection = preferredPreciseScrollSelection(
+                            in: textView.attributedText,
+                            fallbackURL: fallbackURL
+                        )
+                    else { return }
                     guard targetSelection.usedHighlightedRange else { return }
 
                     textView.layoutManager.ensureLayout(for: textView.textContainer)

@@ -303,7 +303,7 @@ struct QuranPageView: View {
     @State var searchHistory: [String] = []
     @State var showClearSearchHistoryConfirmation = false
     @State var showQuickNavigator = false
-    @State var isFocusMode = false
+
     @State var autoScrollTask: Task<Void, Never>?
     @State var autoScrollAdvancingSurah = false
     @State var autoScrollCarry: CGFloat = 0
@@ -1065,7 +1065,7 @@ struct QuranPageView: View {
                         titleFontName: resolvedSurahTitleFontName,
                         basmalaFontName: resolvedBasmalaFontName
                     )
-                    .padding(.top, isFocusMode ? 18 : 6)
+                    .padding(.top, 6)
 
                     quranTextBox(surah: surah)
                 }
@@ -1148,23 +1148,6 @@ struct QuranPageView: View {
                 }
         )
         .simultaneousGesture(horizontalPageSwipeGesture)
-        /*
-        .onTapGesture {
-            if Date().timeIntervalSince(lastInteractiveTapAt) < 0.25 { return }
-            withAnimation(.easeInOut(duration: 0.2)) {
-                if showFloatingActions {
-                    showFloatingActions = false
-                } else {
-                    isFocusMode.toggle()
-                }
-            }
-        }
-        */
-        .onChange(of: isFocusMode) { _, _ in
-            DispatchQueue.main.async {
-                refreshSafeAreaTopInset()
-            }
-        }
         .onChange(of: isAutoScrolling) { _, active in
             handleAutoScrollToggle(active: active, proxy: proxy)
         }
@@ -1178,236 +1161,30 @@ struct QuranPageView: View {
 
     @ViewBuilder
     var mainZStack: some View {
-        ZStack {
-            backgroundColor.ignoresSafeArea()
-            decorativeBackground
+        GeometryReader { geometry in
+            ZStack {
+                backgroundColor.ignoresSafeArea()
+                decorativeBackground
 
-            if let surah = viewModel.currentSurah {
-                mainReaderAndChrome(surah: surah)
-            } else if let errorMessage = viewModel.dataLoadErrorMessage {
-                mainErrorView(message: errorMessage)
-            } else {
-                mainLoadingView()
-            }
+                if let surah = viewModel.currentSurah {
+                    mainReaderAndChrome(surah: surah)
+                        .frame(maxWidth: geometry.size.width)  // Constrain width to prevent scrollview expansion
+                } else if let errorMessage = viewModel.dataLoadErrorMessage {
+                    mainErrorView(message: errorMessage)
+                        .frame(maxWidth: geometry.size.width)
+                } else {
+                    mainLoadingView()
+                        .frame(maxWidth: geometry.size.width)
+                }
 
-            if isShowingToast {
-                toastView
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .zIndex(2)
+                if isShowingToast {
+                    toastView
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(2)
+                }
             }
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if isFocusMode {
-                focusModeQuickActions
-            }
-        }
-    }
-
-    var focusModeQuickActions: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Button {
-                    showSurahList = true
-                    lightHaptic()
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(currentSurahTitle)
-                            .font(.subheadline.weight(.semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.78)
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 8, weight: .bold))
-                    }
-                    .foregroundColor(primaryGreen)
-                    //     .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .buttonStyle(.plain)
-                //    .frame(maxWidth: .infinity, alignment: .trailing)
-                .layoutPriority(2)
-
-                HStack(spacing: 4) {
-                    HStack(spacing: 2) {
-                        Text("\(chromeMushafPageNumber)")
-                            .foregroundColor(secondaryTextColor)
-                        Text("ص")
-                            .foregroundColor(secondaryTextColor)
-                    }
-
-                    Text("•")
-                        .foregroundColor(secondaryTextColor.opacity(0.3))
-
-                    HStack(spacing: 2) {
-                        let juzLabel = currentJuzLabel.replacingOccurrences(
-                            of: "الجزء", with: "جزء")
-                        let components = juzLabel.components(separatedBy: " ")
-                        if components.count >= 2 {
-                            Text(components[components.count - 1])
-                                .foregroundColor(primaryGreen)
-                            Text(components[0])
-                                .foregroundColor(secondaryTextColor)
-                        } else {
-                            Text(juzLabel)
-                                .foregroundColor(secondaryTextColor)
-                        }
-                    }
-
-                    if isAutoScrolling {
-                        Text("•")
-                            .foregroundColor(secondaryTextColor.opacity(0.3))
-
-                        RemainingTimeTicker(
-                            remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
-                            resetToken:
-                                "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
-                            prefix: "",
-                            suffix: " د",
-                            font: .system(size: 9, weight: .bold, design: .monospaced),
-                            color: .orange,
-                            minWidth: 52
-                        )
-                        .fixedSize(horizontal: true, vertical: false)
-                    }
-                }
-                .font(.system(size: 9, weight: .bold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                //   .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .lineLimit(1)
-            .minimumScaleFactor(0.68)
-            .layoutPriority(1)
-            //  .frame(maxWidth: .infinity, alignment: .trailing)
-
-            Spacer()
-
-            HStack(spacing: 8) {
-                HStack(spacing: 6) {
-                    Button {
-                        if isAutoScrolling {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isAutoScrolling = false
-                            }
-                        } else {
-                            activateReadingModeForAutoScrollIfNeeded(starting: true)
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isAutoScrolling = true
-                            }
-                        }
-                        lightHaptic()
-                    } label: {
-                        toolbarIcon(
-                            isAutoScrolling ? "pause.fill" : "play.fill", tint: primaryGreen)
-                    }
-
-                    focusModeAutoScrollSpeedControl
-                }
-                .padding(.horizontal, 2)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(.ultraThinMaterial)
-                        .environment(\.colorScheme, viewModel.isNightMode ? .dark : .light)
-                        .overlay(
-                            Capsule().stroke(primaryGreen.opacity(0.2), lineWidth: 1)
-                        )
-                        .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
-                )
-
-                Button {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        isFocusMode = false
-                        isTopChromeCollapsed = false
-                    }
-                    lightHaptic()
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(textColor)
-                        .frame(width: 44, height: 44)
-                        .background(
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .environment(\.colorScheme, viewModel.isNightMode ? .dark : .light)
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(primaryGreen.opacity(0.3), lineWidth: 1)
-                        )
-                        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-                }
-            }
-        }
-        .environment(\.layoutDirection, .rightToLeft)
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 10)
-        .frame(maxWidth: .infinity, alignment: .trailing)  //Fix imp
-        .background(backgroundColor.opacity(0.95))
-        .overlay(Divider().opacity(0.10), alignment: .bottom)
-    }
-
-    var focusModeAutoScrollSpeedControl: some View {
-        HStack(spacing: 6) {
-            Text("0")
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundColor(textColor.opacity(0.65))
-                .frame(width: 10)
-
-            GeometryReader { geometry in
-                let thumbWidth: CGFloat = 20
-                let thumbHeight: CGFloat = 20
-                let segmentCount = max(autoScrollSpeedPresets.count - 1, 1)
-                let usableWidth = max(geometry.size.width - thumbWidth, 1)
-                let stepWidth = usableWidth / CGFloat(segmentCount)
-                let level = autoScrollSpeedLevel
-                let thumbOffset = CGFloat(level) * stepWidth
-
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(textColor.opacity(0.12))
-
-                    Capsule()
-                        .fill(Color.orange.opacity(0.26))
-                        .frame(width: thumbOffset + (thumbWidth / 2))
-
-                    ForEach(1..<segmentCount, id: \.self) { segment in
-                        Rectangle()
-                            .fill(textColor.opacity(0.18))
-                            .frame(width: 1, height: 10)
-                            .offset(x: CGFloat(segment) * stepWidth + (thumbWidth / 2))
-                    }
-
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.white.opacity(0.96))
-                        .frame(width: thumbWidth, height: thumbHeight)
-                        .shadow(color: Color.black.opacity(0.10), radius: 4, x: 0, y: 1)
-                        .offset(x: thumbOffset)
-                }
-                .frame(height: 20)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            let proposed = ((value.location.x - (thumbWidth / 2)) / stepWidth)
-                                .rounded()
-                            let newLevel = min(
-                                max(Int(proposed), 0),
-                                autoScrollSpeedPresets.count - 1
-                            )
-                            guard newLevel != autoScrollSpeedLevel else { return }
-                            setAutoScrollSpeedLevel(newLevel)
-                            lightHaptic()
-                        }
-                )
-            }
-            .frame(width: 86, height: 20)
-
-            Text("7")
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundColor(textColor.opacity(0.65))
-                .frame(width: 10)
-        }
-        .environment(\.layoutDirection, .leftToRight)
     }
 
     @ViewBuilder
@@ -1415,22 +1192,22 @@ struct QuranPageView: View {
         VStack(spacing: 0) {
             // High-Performance Toolbar Area
             VStack(spacing: 0) {
-                if !isFocusMode {
-                    ZStack(alignment: .top) {
-                        if isTopChromeCollapsed {
-                            collapsedTopHandle
-                        } else {
-                            VStack(spacing: 0) {
-                                topNavigationBar
+                ZStack(alignment: .top) {
+                    if isTopChromeCollapsed {
+                        collapsedTopHandle
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    } else {
+                        VStack(spacing: 0) {
+                            topNavigationBar
 
-                                if showQuickNavigator {
-                                    quickNavigatorPanel
-                                }
+                            if showQuickNavigator {
+                                quickNavigatorPanel
                             }
                         }
+                        .transition(.move(edge: .top).combined(with: .opacity))
                     }
-                    .zIndex(1)
                 }
+                .zIndex(1)
             }
 
             readerContent(for: surah)
@@ -1642,6 +1419,9 @@ struct QuranPageView: View {
     }
 
     func goToMushafVerse(surahIndex: Int, verseId: Int) {
+        print(
+            "MUSHAF_NAV: goToMushafVerse(surahIndex: \(surahIndex), verseId: \(verseId)) called. isAutoScrolling: \(isAutoScrolling)"
+        )
         guard let surah = viewModel.surahs[safe: surahIndex] else { return }
         let surahId = surah.id
         guard let page = mushafPageForVerse(surahIndex: surahIndex, verseId: verseId) else {
@@ -1660,6 +1440,9 @@ struct QuranPageView: View {
     }
 
     func goToMushafVerse(surahId: Int, verseId: Int) {
+        print(
+            "MUSHAF_NAV: goToMushafVerse(surahId: \(surahId), verseId: \(verseId)) called. isAutoScrolling: \(isAutoScrolling)"
+        )
         guard let surahIndex = viewModel.surahs.firstIndex(where: { $0.id == surahId }) else {
             return
         }
