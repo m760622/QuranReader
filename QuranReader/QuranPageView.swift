@@ -312,7 +312,6 @@ struct QuranPageView: View {
     @State var isTopChromeCollapsed = false
     @State var lastTrackedScrollOffset: Double = 0
     @State var pendingScrollHandlingTask: Task<Void, Never>?
-    @State var initialRestoreTask: Task<Void, Never>?
     @State var isFloatingMenuHiddenByScroll = false
     @State var floatingMenuRevealTask: Task<Void, Never>?
     @State var topChromeCollapsedBySurah: [String: Bool] = [:]
@@ -371,6 +370,7 @@ struct QuranPageView: View {
 
     // Coordinate space for scroll tracking
     let scrollSpace = "QuranScroll"
+    let contentSpace = "QuranContent"
 
     var readerMode: ReaderMode {
         ReaderMode(rawValue: readerModeRawValue) ?? .surah
@@ -970,22 +970,14 @@ struct QuranPageView: View {
                         .onAppear {
                             captureLaunchCheckpointIfNeeded()
                             if viewModel.coreLoadStage == .loaded {
-                                initialRestoreTask?.cancel()
-                                initialRestoreTask = Task { @MainActor in
-                                    try? await Task.sleep(nanoseconds: 100_000_000)
-                                    guard !Task.isCancelled else { return }
-                                    performInitialMushafScrollIfNeeded(proxy: proxy)
-                                }
+                                applyLaunchRestoreNavigationIfNeeded()
+                                performInitialMushafScrollIfNeeded(proxy: proxy)
                             }
                         }
                         .onChange(of: viewModel.coreLoadStage) { _, stage in
                             if stage == .loaded {
-                                initialRestoreTask?.cancel()
-                                initialRestoreTask = Task { @MainActor in
-                                    try? await Task.sleep(nanoseconds: 100_000_000)
-                                    guard !Task.isCancelled else { return }
-                                    performInitialMushafScrollIfNeeded(proxy: proxy)
-                                }
+                                applyLaunchRestoreNavigationIfNeeded()
+                                performInitialMushafScrollIfNeeded(proxy: proxy)
                             }
                         }
                 }
@@ -1009,13 +1001,13 @@ struct QuranPageView: View {
                         .id("MUSHAF_PAGE_\(page)")
                         .background(
                             GeometryReader { geo in
-                                let minY = geo.frame(in: .named(scrollSpace)).minY
+                                let minY = geo.frame(in: .named(contentSpace)).minY
                                 let anchorToken = Int(minY.rounded())
                                 Color.clear
                                     .task(id: anchorToken) {
                                         scheduleMushafPageAnchorRegistration(
                                             page: page,
-                                            minYInScrollSpace: minY
+                                            absoluteY: minY
                                         )
                                     }
                             }
@@ -1073,6 +1065,7 @@ struct QuranPageView: View {
                 Color.clear.frame(height: 1).id("BOTTOM")
                 Spacer(minLength: 260)
             }
+            .coordinateSpace(name: contentSpace)
             .padding(.horizontal, 16)
             .padding(.bottom, 20)
             .background(

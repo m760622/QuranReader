@@ -142,27 +142,20 @@ extension QuranPageView {
         handleReaderScroll(offset: offset)
     }
 
-    func scheduleMushafPageAnchorRegistration(page: Int, minYInScrollSpace: CGFloat) {
-        DispatchQueue.main.async {
-            registerMushafPageAnchor(page: page, minYInScrollSpace: minYInScrollSpace)
+    func scheduleMushafPageAnchorRegistration(page: Int, absoluteY: CGFloat) {
+        Task { @MainActor in
+            registerMushafPageAnchor(page: page, absoluteY: absoluteY)
         }
     }
 
-    func registerMushafPageAnchor(page: Int, minYInScrollSpace: CGFloat) {
-        let contentOffsetY: CGFloat = {
-            if let scrollView = resolvedScrollView {
-                return max(0, scrollView.contentOffset.y + scrollView.adjustedContentInset.top)
-            }
-            return CGFloat(max(0, viewModel.lastScrollOffset))
-        }()
-        let contentY = minYInScrollSpace + contentOffsetY
-        guard contentY.isFinite else { return }
+    func registerMushafPageAnchor(page: Int, absoluteY: CGFloat) {
+        guard absoluteY.isFinite else { return }
 
-        let previous = mushafPageAnchorYByPage[page] ?? contentY
-        if abs(previous - contentY) > 1.5 {
-            mushafPageAnchorYByPage[page] = contentY
+        let previous = mushafPageAnchorYByPage[page] ?? absoluteY
+        if abs(previous - absoluteY) > 1.5 {
+            mushafPageAnchorYByPage[page] = absoluteY
         } else if mushafPageAnchorYByPage[page] == nil {
-            mushafPageAnchorYByPage[page] = contentY
+            mushafPageAnchorYByPage[page] = absoluteY
         }
 
     }
