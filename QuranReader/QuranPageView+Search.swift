@@ -478,23 +478,42 @@ extension QuranPageView {
         }
 
         let trimmedQuery = surahListQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedQuery.isEmpty else {
-            return baseRows.map { (index: $0.0, surah: $0.1) }
-        }
-
         let normalizedQuery = normalizedSurahLookupText(trimmedQuery)
         let rawDigits = trimmedQuery.filter(\.isNumber)
 
-        return
+        let filtered =
             baseRows
             .filter { _, surah in
                 let normalizedName = normalizedSurahLookupText(surah.name)
                 let normalizedNumber = String(surah.id)
-                return (!normalizedQuery.isEmpty && normalizedName.contains(normalizedQuery))
-                    || (!rawDigits.isEmpty && normalizedNumber.contains(rawDigits))
+                return (normalizedQuery.isEmpty || normalizedName.contains(normalizedQuery))
+                    && (rawDigits.isEmpty || normalizedNumber.contains(rawDigits))
                     || surah.name.localizedCaseInsensitiveContains(trimmedQuery)
             }
-            .map { (index: $0.0, surah: $0.1) }
+
+        // Apply Sorting
+        let sorted = filtered.sorted { a, b in
+            let (idxA, surahA) = a
+            let (idxB, surahB) = b
+
+            switch viewModel.surahSortOption {
+            case .standard:
+                return idxA < idxB
+            case .alphabetical:
+                return surahA.name.localizedCompare(surahB.name) == .orderedAscending
+            case .verseCount:
+                let countA = surahA.verses.count
+                let countB = surahB.verses.count
+                if countA == countB { return idxA < idxB }
+                return countA > countB
+            case .revelation:
+                let orderA = viewModel.revelationOrder(for: surahA.id)
+                let orderB = viewModel.revelationOrder(for: surahB.id)
+                return orderA < orderB
+            }
+        }
+
+        return sorted.map { (index: $0.0, surah: $0.1) }
     }
 
     var surahListView: some View {
@@ -651,6 +670,18 @@ extension QuranPageView {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
+                        Menu {
+                            Picker("ترتيب حسب", selection: $viewModel.surahSortOption) {
+                                ForEach(SurahSortOption.allCases) { option in
+                                    Text(option.title).tag(option)
+                                }
+                            }
+                        } label: {
+                            Label("ترتيب الفهرس", systemImage: "arrow.up.and.down.text.horizontal")
+                        }
+
+                        Divider()
+
                         Button(role: .destructive) {
                             showClearFavoritesConfirmation = true
                         } label: {

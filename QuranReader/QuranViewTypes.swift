@@ -73,6 +73,20 @@ enum SurahListFilter: String, CaseIterable, Identifiable {
     }
 }
 
+enum SurahSortOption: String, CaseIterable, Identifiable {
+    case standard, alphabetical, verseCount, revelation
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .standard: return "الترتيب المصحفي"
+        case .alphabetical: return "الترتيب الأبجدي"
+        case .verseCount: return "عدد الآيات"
+        case .revelation: return "ترتيب النزول"
+        }
+    }
+}
+
 enum VerseDetailsTab: String, CaseIterable, Identifiable {
     case tafsir, english, swedish
     var id: String { rawValue }

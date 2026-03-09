@@ -181,6 +181,14 @@ final class QuranPageViewModel: ObservableObject {
         }
     }
 
+    @AppStorage("surahSortOption") var surahSortOptionData: String = SurahSortOption.standard
+        .rawValue
+    @Published var surahSortOption: SurahSortOption = .standard {
+        didSet {
+            surahSortOptionData = surahSortOption.rawValue
+        }
+    }
+
     @Published var favoriteIDs: Set<Int> = []
     @Published private(set) var recentSurahIndices: [Int] = []
     @Published private(set) var bookmarkedVerseKeys: Set<String> = []
@@ -201,6 +209,25 @@ final class QuranPageViewModel: ObservableObject {
     @Published private(set) var launchRestoreVerseId: Int?
     @Published private(set) var maxMushafPage: Int = 604
     @Published private(set) var juzRowIdBoundsByNumber: [Int: JuzRowIdBounds] = [:]
+
+    private let revelationOrderMap: [Int: Int] = [
+        96: 1, 68: 2, 73: 3, 74: 4, 1: 5, 111: 6, 81: 7, 87: 8, 92: 9, 89: 10,
+        93: 11, 94: 12, 103: 13, 100: 14, 108: 15, 102: 16, 107: 17, 109: 18, 105: 19, 106: 20,
+        90: 21, 86: 22, 85: 23, 88: 24, 91: 25, 95: 26, 104: 27, 101: 28, 75: 29, 77: 30,
+        50: 31, 67: 32, 53: 33, 84: 34, 79: 35, 82: 36, 78: 37, 56: 38, 80: 39, 29: 40,
+        2: 41, 3: 42, 4: 43, 5: 44, 6: 45, 7: 46, 8: 47, 9: 48, 10: 49, 11: 50,
+        12: 51, 13: 52, 14: 53, 15: 54, 16: 55, 17: 56, 18: 57, 19: 58, 20: 59, 21: 60,
+        22: 61, 23: 62, 24: 63, 25: 64, 26: 65, 27: 66, 28: 67, 30: 68, 31: 69, 32: 70,
+        33: 71, 34: 72, 35: 73, 36: 74, 37: 75, 38: 76, 39: 77, 40: 78, 41: 79, 42: 80,
+        43: 81, 44: 82, 45: 83, 46: 84, 47: 85, 48: 86, 49: 87, 51: 88, 52: 89, 54: 90,
+        55: 91, 57: 92, 58: 93, 59: 94, 60: 95, 61: 96, 62: 97, 63: 98, 64: 99, 65: 100,
+        66: 101, 69: 102, 70: 103, 71: 104, 72: 105, 76: 106, 83: 107, 97: 108, 98: 109, 99: 110,
+        110: 111, 112: 112, 113: 113, 114: 114,
+    ]
+
+    func revelationOrder(for surahId: Int) -> Int {
+        revelationOrderMap[surahId] ?? surahId
+    }
 
     var searchIndex: [IndexedVerse] = []
     var surahTextCache: [Int: String] = [:]
@@ -228,6 +255,9 @@ final class QuranPageViewModel: ObservableObject {
         }
         launchRestoreSurahIndex = currentSurahIndex
         launchRestoreVerseId = lastReadVerseId
+        if let savedSort = SurahSortOption(rawValue: surahSortOptionData) {
+            self.surahSortOption = savedSort
+        }
         loadFavorites()
         loadRecentSurahs()
         loadBookmarkedVerses()
