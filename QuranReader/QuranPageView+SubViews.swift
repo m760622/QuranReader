@@ -880,14 +880,6 @@ extension QuranPageView {
                         height: CGFloat.greatestFiniteMagnitude
                     )
 
-                    #if DEBUG
-                        if abs(lastLoggedWidth - snappedWidth) > 0.25 {
-                            lastLoggedWidth = snappedWidth
-                            print(
-                                "MUSHAF_LAYOUT width=\(String(format: "%.2f", snappedWidth)) bounds=\(String(format: "%.2f", bounds.width)) frame=\(String(format: "%.2f", frame.width)) inset=\(String(format: "%.2f", textContainerInset.left + textContainerInset.right))"
-                            )
-                        }
-                    #endif
                 }
             }
 

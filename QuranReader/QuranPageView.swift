@@ -1412,9 +1412,6 @@ struct QuranPageView: View {
     }
 
     func goToMushafVerse(surahIndex: Int, verseId: Int) {
-        print(
-            "MUSHAF_NAV: goToMushafVerse(surahIndex: \(surahIndex), verseId: \(verseId)) called. isAutoScrolling: \(isAutoScrolling)"
-        )
         guard let surah = viewModel.surahs[safe: surahIndex] else { return }
         let surahId = surah.id
         guard let page = mushafPageForVerse(surahIndex: surahIndex, verseId: verseId) else {
@@ -1433,9 +1430,6 @@ struct QuranPageView: View {
     }
 
     func goToMushafVerse(surahId: Int, verseId: Int) {
-        print(
-            "MUSHAF_NAV: goToMushafVerse(surahId: \(surahId), verseId: \(verseId)) called. isAutoScrolling: \(isAutoScrolling)"
-        )
         guard let surahIndex = viewModel.surahs.firstIndex(where: { $0.id == surahId }) else {
             return
         }

@@ -148,6 +148,7 @@ extension QuranPageView {
                                     lineWidth: 1)
                         )
                     }
+                    .layoutPriority(2)  // High priority to prevent truncation
 
                     // Contextual Pill (Juz)
                     pill(
@@ -181,17 +182,17 @@ extension QuranPageView {
                         )
                         .minimumScaleFactor(0.8)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 2)
 
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(alignment: .leading)
 
                 Spacer()
 
                 // Quick Actions - Now on the LEFT (Last in RTL HStack)
                 HStack(spacing: 6) {
                     autoScrollSpeedControl
+                        .frame(maxWidth: 100)  // Limit slider width
                         .layoutPriority(1)
 
                     // Auto-Scroll Play/Pause
@@ -276,6 +277,7 @@ extension QuranPageView {
                                         lineWidth: 1)
                             )
                         }
+                        .layoutPriority(2)  // High priority to prevent truncation
 
                         // Context Information (Integrated)
                         HStack(spacing: 6) {

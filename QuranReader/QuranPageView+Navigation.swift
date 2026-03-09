@@ -36,9 +36,6 @@ extension QuranPageView {
     }
 
     func handleAutoScrollToggle(active: Bool, proxy: ScrollViewProxy) {
-        print(
-            "AUTO_SCROLL: handleAutoScrollToggle(active: \(active)) called. Current Page: \(chromeMushafPageNumber), isAutoScrolling = \(isAutoScrolling)"
-        )
         autoScrollTask?.cancel()
         autoScrollTask = nil
         autoScrollAdvancingSurah = false
@@ -226,7 +223,6 @@ extension QuranPageView {
         let isPendingTargetMatch: Bool
         if let targetPage = pendingMushafScrollTargetPage {
             if page == targetPage {
-                print("MUSHAF_NAV: Matched pending target page \(targetPage). Clearing.")
                 pendingMushafScrollTargetPage = nil
                 isPendingTargetMatch = true
             } else {
