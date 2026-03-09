@@ -965,7 +965,7 @@ final class QuranPageViewModel: ObservableObject {
     func tafsirText(for surahId: Int, verseId: Int, fallback verse: Verse? = nil) -> String? {
         guard let dbReader = DatabaseManager.shared.dbReader else { return nil }
         do {
-            let rowId = (surahId * 1000) + verseId
+            let rowId = verse?.rowId ?? (surahId * 1000) + verseId
             return try dbReader.read { db in
                 try DBTafsir.fetchOne(db, key: rowId)?.text
             }
@@ -979,7 +979,7 @@ final class QuranPageViewModel: ObservableObject {
     {
         guard let dbReader = DatabaseManager.shared.dbReader else { return nil }
         do {
-            let rowId = (surahId * 1000) + verseId
+            let rowId = verse?.rowId ?? (surahId * 1000) + verseId
             return try dbReader.read { db in
                 try DBTranslation.filter(
                     Column("verseRowId") == rowId && Column("languageCode") == "en"
@@ -995,7 +995,7 @@ final class QuranPageViewModel: ObservableObject {
     {
         guard let dbReader = DatabaseManager.shared.dbReader else { return nil }
         do {
-            let rowId = (surahId * 1000) + verseId
+            let rowId = verse?.rowId ?? (surahId * 1000) + verseId
             return try dbReader.read { db in
                 try DBTranslation.filter(
                     Column("verseRowId") == rowId && Column("languageCode") == "sv"

@@ -37,7 +37,7 @@ extension QuranPageView {
                 tabs.contains(verseDetailsTab) ? verseDetailsTab : (tabs.first ?? .tafsir)
             let detailText = getTafsirText(selectedTab, surah, verse)
 
-            VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
                 // Header (Ayah Number, Location info)
                 HStack(spacing: 12) {
                     AyahMarker(number: verse.id, color: primaryGreen)
@@ -58,17 +58,15 @@ extension QuranPageView {
                     }
                     Spacer()
                 }
-                .environment(\.layoutDirection, .rightToLeft)
 
                 // Original Verse Text
                 Text(verse.text)
                     .font(.system(size: max(18, fontSize * 0.72), weight: .regular, design: .serif))
                     .lineSpacing(max(8, lineSpacing * 0.45))
-                    .multilineTextAlignment(.leading)  // right to left
+                    .multilineTextAlignment(.leading)
                     .foregroundColor(textColor)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
-                    .environment(\.layoutDirection, .rightToLeft)
                     .padding(.bottom, 8)
 
                 // Tabs
@@ -96,7 +94,6 @@ extension QuranPageView {
                             }
                         }
                         .padding(.horizontal, 4)
-                        .environment(\.layoutDirection, .rightToLeft)
                     }
                 }
 
@@ -104,17 +101,13 @@ extension QuranPageView {
                 if let detailText, !detailText.isEmpty {
                     ScrollView {
                         Text(detailText)
-                            .font(selectedTab == .tafsir ? .system(size: 15) : .system(size: 14))
+                            .font(selectedTab == .tafsir ? .system(size: 17) : .system(size: 15))
                             .foregroundColor(
                                 selectedTab == .tafsir ? textColor : secondaryTextColor
                             )
-                            .lineSpacing(6)
-                            // In RTL, `.leading` aligns to the visual right edge.
+                            .lineSpacing(selectedTab == .tafsir ? 8 : 6)
                             .multilineTextAlignment(.leading)
-                            .frame(
-                                maxWidth: .infinity,
-                                alignment: .leading
-                            )
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .textSelection(.enabled)
                             .padding(.vertical, 8)
                     }
@@ -130,6 +123,7 @@ extension QuranPageView {
                         .padding(.vertical, 8)
                 }
             }
+            .environment(\.layoutDirection, .rightToLeft)
             .padding()
             .padding(.top, 12)
         }

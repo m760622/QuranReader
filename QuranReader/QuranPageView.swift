@@ -590,8 +590,13 @@ struct QuranPageView: View {
     }
 
     var chromeMushafPageNumber: Int {
-        if isMushafPageMode, let visiblePage = visibleMushafPageCandidateForChrome() {
-            return visiblePage
+        if isMushafPageMode {
+            if let target = pendingMushafScrollTargetPage {
+                return target
+            }
+            if let visiblePage = visibleMushafPageCandidateForChrome() {
+                return visiblePage
+            }
         }
         return currentStandardPage ?? storedMushafPageNumber
     }
