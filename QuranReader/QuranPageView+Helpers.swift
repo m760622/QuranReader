@@ -62,13 +62,31 @@ extension QuranPageView {
         let searchView: AnyView
         let surahListView: AnyView
         let verseBookmarksView: AnyView
+        let isNightMode: Bool
 
         func body(content: Content) -> some View {
             content
-                .background(EmptyView().sheet(isPresented: $showSearch) { searchView })
-                .background(EmptyView().sheet(isPresented: $showSurahList) { surahListView })
                 .background(
-                    EmptyView().sheet(isPresented: $showVerseBookmarksList) { verseBookmarksView })
+                    EmptyView()
+                        .sheet(isPresented: $showSearch) {
+                            searchView
+                                .preferredColorScheme(isNightMode ? .dark : .light)
+                        }
+                )
+                .background(
+                    EmptyView()
+                        .sheet(isPresented: $showSurahList) {
+                            surahListView
+                                .preferredColorScheme(isNightMode ? .dark : .light)
+                        }
+                )
+                .background(
+                    EmptyView()
+                        .sheet(isPresented: $showVerseBookmarksList) {
+                            verseBookmarksView
+                                .preferredColorScheme(isNightMode ? .dark : .light)
+                        }
+                )
         }
     }
 

@@ -518,15 +518,23 @@ extension QuranPageView {
 
     var surahListView: some View {
         NavigationView {
-            VStack(spacing: 12) {
-                VStack(spacing: 10) {
-                    Picker("التصفية", selection: $surahListFilter) {
-                        ForEach(SurahListFilter.allCases) { filter in
-                            Text(filter.title).tag(filter)
+            VStack(spacing: 0) {
+                // Dedicated Sort Bar Header
+                VStack(spacing: 0) {
+                    Picker("ترتيب الفهرس", selection: $viewModel.surahSortOption) {
+                        ForEach(SurahSortOption.allCases) { option in
+                            Text(option.title).tag(option)
                         }
                     }
                     .pickerStyle(.segmented)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
 
+                    Divider()
+                }
+                .background(Color(UIColor.secondarySystemBackground))
+
+                VStack(spacing: 12) {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.gray)
@@ -537,6 +545,8 @@ extension QuranPageView {
                     .padding(10)
                     .background(Color.gray.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal)
+                    .padding(.top, 12)
 
                     Button {
                         let resumeVerseId =
@@ -671,13 +681,13 @@ extension QuranPageView {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Menu {
-                            Picker("ترتيب حسب", selection: $viewModel.surahSortOption) {
-                                ForEach(SurahSortOption.allCases) { option in
-                                    Text(option.title).tag(option)
+                            Picker("التصفية", selection: $surahListFilter) {
+                                ForEach(SurahListFilter.allCases) { filter in
+                                    Text(filter.title).tag(filter)
                                 }
                             }
                         } label: {
-                            Label("ترتيب الفهرس", systemImage: "arrow.up.and.down.text.horizontal")
+                            Label("تصفية القائمة", systemImage: "line.3.horizontal.decrease.circle")
                         }
 
                         Divider()

@@ -79,10 +79,10 @@ enum SurahSortOption: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .standard: return "الترتيب المصحفي"
-        case .alphabetical: return "الترتيب الأبجدي"
-        case .verseCount: return "عدد الآيات"
-        case .revelation: return "ترتيب النزول"
+        case .standard: return "المصحفي"
+        case .alphabetical: return "الأبجدي"
+        case .verseCount: return "الآيات"
+        case .revelation: return "النزول"
         }
     }
 }

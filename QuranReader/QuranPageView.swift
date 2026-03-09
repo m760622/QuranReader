@@ -858,7 +858,8 @@ struct QuranPageView: View {
                     showVerseBookmarksList: $showVerseBookmarksList,
                     searchView: AnyView(searchView),
                     surahListView: AnyView(surahListView),
-                    verseBookmarksView: AnyView(verseBookmarksView)
+                    verseBookmarksView: AnyView(verseBookmarksView),
+                    isNightMode: viewModel.isNightMode
                 )
             )
             .modifier(
@@ -933,6 +934,7 @@ struct QuranPageView: View {
                 )
             )
             .statusBarHidden(!showClock)
+            .preferredColorScheme(viewModel.isNightMode ? .dark : .light)
     }
 
     // MARK: - Main Reader
