@@ -63,13 +63,6 @@ extension QuranPageView {
             (try? JSONDecoder().decode([String].self, from: searchHistoryData))?.count ?? 0
         }
 
-        func settingsLightHaptic() {
-            guard useHaptics else { return }
-            let isSimulator = ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil
-            guard !isSimulator else { return }
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        }
-
         var fontWeightOption: ReaderFontWeightOption {
             ReaderFontWeightOption(rawValue: readerFontWeightRawValue) ?? .regular
         }
@@ -530,7 +523,7 @@ extension QuranPageView {
                         ForEach(nightThemes) { theme in
                             Button {
                                 applyNightTheme(theme)
-                                settingsLightHaptic()
+                                performLightHaptic(enabled: useHaptics)
                             } label: {
                                 VStack(spacing: 8) {
                                     // Theme Preview Circle

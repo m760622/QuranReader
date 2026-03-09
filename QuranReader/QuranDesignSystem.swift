@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-import UIKit  // Added missing import for UIImpactFeedbackGenerator
+import UIKit
 
 // MARK: - Core Design Constants
 struct QuranDesign {
@@ -34,19 +34,21 @@ struct QuranDesign {
 
 // MARK: - View Helpers
 extension View {
-    func lightHaptic() {
-        let isSimulator = ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil
-        guard !isSimulator else { return }
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.prepare()
-        generator.impactOccurred()
+    func performLightHaptic(enabled: Bool = true) {
+        #if !targetEnvironment(simulator)
+            guard enabled else { return }
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.prepare()
+            generator.impactOccurred()
+        #endif
     }
 
-    func mediumHaptic() {
-        let isSimulator = ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil
-        guard !isSimulator else { return }
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.prepare()
-        generator.impactOccurred()
+    func performMediumHaptic(enabled: Bool = true) {
+        #if !targetEnvironment(simulator)
+            guard enabled else { return }
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.prepare()
+            generator.impactOccurred()
+        #endif
     }
 }

@@ -832,12 +832,7 @@ extension QuranPageView {
     }
 
     func lightHaptic() {
-        guard useHaptics else { return }
-        #if targetEnvironment(simulator)
-            return
-        #else
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        #endif
+        performLightHaptic(enabled: useHaptics)
     }
 
     func readerDebug(_ message: String) {
