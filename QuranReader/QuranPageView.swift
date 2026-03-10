@@ -580,16 +580,19 @@ struct QuranPageView: View {
         return "\(page) / \(maxPage)"
     }
 
-    var currentSurahSubtitle: String {
+    var currentSurahAyahCountLabel: String {
+        if let surah = viewModel.currentSurah {
+            return "\(surah.verses.count) آية"
+        }
+        return ""
+    }
+
+    var currentPageContextSubtitle: String {
         let page = chromeMushafPageNumber
         let sections = mushafSurahSections(for: page)
         let ayahCount = sections.reduce(0) { $0 + $1.verses.count }
         guard ayahCount > 0 else {
-            // Fallback to viewModel for cases where mushafIndex isn't built yet
-            if let surah = viewModel.currentSurah {
-                return "\(surah.verses.count) آية"
-            }
-            return ""
+            return "آية بالصفحة"
         }
         if sections.count == 1, sections.first != nil {
             return "\(ayahCount) آية بالصفحة"

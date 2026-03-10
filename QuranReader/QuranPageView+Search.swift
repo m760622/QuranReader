@@ -225,7 +225,7 @@ extension QuranPageView {
                             searchResults = []
                             lightHaptic()
                         } label: {
-                            VStack(alignment: .trailing, spacing: 6) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 let showingExternalPreview = result.previewText != nil
                                 let preview = result.previewText ?? result.verseText
                                 let previewIsLTR =
@@ -758,7 +758,7 @@ extension QuranPageView {
                     showVerseBookmarksList = false
                     lightHaptic()
                 } label: {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 2) {
                         HStack {
                             Text(row.surah.name)
                                 .font(.headline)

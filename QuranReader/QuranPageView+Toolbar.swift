@@ -119,73 +119,100 @@ extension QuranPageView {
     var collapsedTopHandle: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                // Title & Context Section - Now on the RIGHT (First in RTL HStack)
-                HStack(spacing: 6) {
-                    Button {
-                        showSurahList = true
-                        lightHaptic()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(currentSurahTitle)
-                                .font(.system(size: 14, weight: .bold, design: .serif))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 8) {
+                        Button {
+                            showSurahList = true
+                            lightHaptic()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(currentSurahTitle)
+                                    .font(.system(size: 14, weight: .bold, design: .serif))
+                                    .lineLimit(1)
+                                    .fixedSize(horizontal: true, vertical: false)
 
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 8, weight: .bold))
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 8, weight: .bold))
+                            }
+                            .foregroundColor(primaryGreen)
+                            .padding(.horizontal, 3)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(primaryGreen.opacity(viewModel.isNightMode ? 0.15 : 0.08))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(
+                                        primaryGreen.opacity(viewModel.isNightMode ? 0.25 : 0.15),
+                                        lineWidth: 1)
+                            )
                         }
-                        .foregroundColor(primaryGreen)
-                        .padding(.horizontal, 3)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(primaryGreen.opacity(viewModel.isNightMode ? 0.15 : 0.08))
+                        .layoutPriority(2)
+
+                        pill(
+                            text: currentJuzLabel,
+                            tint: secondaryAccentColor,
+                            dualTone: true
                         )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(
-                                    primaryGreen.opacity(viewModel.isNightMode ? 0.25 : 0.15),
-                                    lineWidth: 1)
-                        )
+
+                        Text(currentHizbLabel)
+                            .font(.system(size: 9).weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .foregroundColor(secondaryTextColor)
                     }
-                    .layoutPriority(2)  // High priority to prevent truncation
-
-                    // Contextual Pill (Juz)
-                    pill(
-                        text: currentJuzLabel,
-                        tint: secondaryAccentColor,
-                        dualTone: true
-                    )
-
-                    // Page Number Pill
-                    Text("ص \(chromeMushafPageNumber)")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(primaryGreen)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .padding(.horizontal, 3)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule().fill(primaryGreen.opacity(0.1))
-                        )
 
                     HStack(spacing: 6) {
-                        RemainingTimeTicker(
-                            remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
-                            resetToken:
-                                "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
-                            prefix: "",
-                            suffix: " د",
-                            font: .system(size: 10, weight: .bold, design: .monospaced),
-                            color: .orange.opacity(0.92),
-                            minWidth: 40
-                        )
-                        .minimumScaleFactor(0.8)
-                    }
-                    .padding(.horizontal, 2)
+                        if isAutoScrolling {
+                            RemainingTimeTicker(
+                                remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
+                                resetToken:
+                                    "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
+                                prefix: "",
+                                suffix: " د",
+                                font: .system(size: 10, weight: .bold, design: .monospaced),
+                                color: .orange.opacity(0.92),
+                                minWidth: 40
+                            )
+                            .minimumScaleFactor(0.8)
+                        }
 
+                        Text(currentPageContextSubtitle)
+                            .font(.system(size: 10, weight: .medium))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .truncationMode(.tail)
+                            .foregroundColor(secondaryTextColor.opacity(0.8))
+                            .layoutPriority(1)
+
+                        Text(currentSurahAyahCountLabel)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(primaryGreen)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule().fill(primaryGreen.opacity(0.12))
+                            )
+                            .layoutPriority(1.2)
+
+                        Text("ص \(chromeMushafPageNumber)")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(primaryGreen)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule().fill(primaryGreen.opacity(0.12))
+                            )
+                            .layoutPriority(1.5)
+                    }
+                    .font(.system(size: 11, weight: .medium))
                 }
-                .frame(alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer()
 
@@ -258,7 +285,7 @@ extension QuranPageView {
                                 Text(currentSurahTitle)
                                     .font(.system(size: 16, weight: .bold, design: .serif))
                                     .lineLimit(1)
-                                    .minimumScaleFactor(0.8)
+                                    .fixedSize(horizontal: true, vertical: false)
 
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 10, weight: .bold))
@@ -301,21 +328,32 @@ extension QuranPageView {
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(primaryGreen)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .padding(.horizontal, 3)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.horizontal, 6)
                             .padding(.vertical, 4)
                             .background(
-                                Capsule().fill(primaryGreen.opacity(0.1))
+                                Capsule().fill(primaryGreen.opacity(0.12))
                             )
+                            .layoutPriority(1.5)
 
-                        Text(
-                            "\(viewModel.currentSurah?.verses.count ?? 0) آية • \(currentSurahSubtitle)"
-                        )
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.68)
-                        .truncationMode(.tail)
-                        .foregroundColor(secondaryTextColor.opacity(0.8))
-                        .layoutPriority(1)
+                        Text(currentSurahAyahCountLabel)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(primaryGreen)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule().fill(primaryGreen.opacity(0.12))
+                            )
+                            .layoutPriority(1.1)
+
+                        Text(currentPageContextSubtitle)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.68)
+                            .truncationMode(.tail)
+                            .foregroundColor(secondaryTextColor.opacity(0.8))
+                            .layoutPriority(1)
 
                         if isAutoScrolling {
                             RemainingTimeTicker(

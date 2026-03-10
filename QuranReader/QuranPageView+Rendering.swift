@@ -631,14 +631,6 @@ extension QuranPageView {
             onVerseTap: { _ in
                 lastInteractiveTapAt = Date()
 
-                // When auto-scrolling, tap toggles auto-scroll play/pause.
-                if isAutoScrolling {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        isAutoScrolling.toggle()
-                    }
-                    return
-                }
-
                 // Single tap toggles top chrome between expanded/collapsed states.
                 suppressChromeScrollUntil = Date().addingTimeInterval(0.55)
                 withAnimation(.easeInOut(duration: 0.2)) {
