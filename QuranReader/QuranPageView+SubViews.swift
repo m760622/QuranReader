@@ -863,7 +863,6 @@ extension QuranPageView {
 
             final class StableLayoutTextView: UITextView {
                 private(set) var stableLayoutWidth: CGFloat = 0
-                private var lastLoggedWidth: CGFloat = 0
 
                 func applyStableLayoutWidth(_ width: CGFloat) {
                     let screenScale =
@@ -875,8 +874,15 @@ extension QuranPageView {
                     guard abs(stableLayoutWidth - snappedWidth) > 0.25 else { return }
 
                     stableLayoutWidth = snappedWidth
+                    let availableContainerWidth = max(
+                        1,
+                        snappedWidth
+                            - textContainerInset.left
+                            - textContainerInset.right
+                            - (textContainer.lineFragmentPadding * 2)
+                    )
                     textContainer.size = CGSize(
-                        width: snappedWidth,
+                        width: availableContainerWidth,
                         height: CGFloat.greatestFiniteMagnitude
                     )
 
@@ -895,11 +901,13 @@ extension QuranPageView {
                 textView.isSelectable = false
                 textView.isScrollEnabled = false
                 textView.backgroundColor = .clear
-                textView.textContainerInset = .zero
-                textView.textContainer.lineFragmentPadding = 0
+                textView.textContainerInset = UIEdgeInsets(top: 0, left: 10, bottom: 0, right: 10)
+                textView.textContainer.lineFragmentPadding =    0
                 textView.textContainer.widthTracksTextView = true
                 textView.textContainer.lineBreakMode = .byWordWrapping
                 textView.textContainer.maximumNumberOfLines = 0
+                textView.clipsToBounds = false
+                textView.layer.masksToBounds = false
                 textView.setContentHuggingPriority(.required, for: .vertical)
                 textView.setContentCompressionResistancePriority(.required, for: .vertical)
                 textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
