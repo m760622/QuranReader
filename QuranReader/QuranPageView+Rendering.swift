@@ -700,7 +700,7 @@ extension QuranPageView {
                 shareVerse(verse: verse, in: surah)
             },
             onPageChange: onPageChange,
-            scrollSpace: scrollSpace,
+            scrollSpace: contentSpace,
             onRegisterAnchor: registerMushafPageAnchor,
             onPreciseScrollCompleted: { surahId, verseId in
                 guard readerNavigationState.targetSurahId == surahId,

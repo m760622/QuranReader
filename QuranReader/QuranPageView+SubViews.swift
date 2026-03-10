@@ -131,13 +131,14 @@ extension QuranPageView {
                         }
                         .background(
                             GeometryReader { geo in
-                                let minY = geo.frame(in: .named(scrollSpace ?? "")).origin.y
-                                let anchorToken = Int(minY.rounded())
+                                // Use the named coordinate space directly to get absolute position relative to content top
+                                let absoluteY = geo.frame(in: .named(scrollSpace ?? "")).minY
+                                let anchorToken = Int(absoluteY.rounded())
                                 Color.clear
                                     .task(id: anchorToken) {
-                                        if let scrollSpace = scrollSpace, !scrollSpace.isEmpty {
+                                        if absoluteY.isFinite {
                                             DispatchQueue.main.async {
-                                                onRegisterAnchor?(group.pageNumber, minY)
+                                                onRegisterAnchor?(group.pageNumber, absoluteY)
                                             }
                                         }
                                     }
@@ -874,15 +875,8 @@ extension QuranPageView {
                     guard abs(stableLayoutWidth - snappedWidth) > 0.25 else { return }
 
                     stableLayoutWidth = snappedWidth
-                    let availableContainerWidth = max(
-                        1,
-                        snappedWidth
-                            - textContainerInset.left
-                            - textContainerInset.right
-                            - (textContainer.lineFragmentPadding * 2)
-                    )
                     textContainer.size = CGSize(
-                        width: availableContainerWidth,
+                        width: snappedWidth,
                         height: CGFloat.greatestFiniteMagnitude
                     )
 
@@ -901,8 +895,9 @@ extension QuranPageView {
                 textView.isSelectable = false
                 textView.isScrollEnabled = false
                 textView.backgroundColor = .clear
-                textView.textContainerInset = UIEdgeInsets(top: 0, left: 10, bottom: 0, right: 10)
-                textView.textContainer.lineFragmentPadding =    0
+                // Rely on SwiftUI padding; set internal insets to zero to prevent narrow text stretching
+                textView.textContainerInset = .zero
+                textView.textContainer.lineFragmentPadding = 0
                 textView.textContainer.widthTracksTextView = true
                 textView.textContainer.lineBreakMode = .byWordWrapping
                 textView.textContainer.maximumNumberOfLines = 0

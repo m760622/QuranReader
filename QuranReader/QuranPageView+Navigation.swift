@@ -401,9 +401,24 @@ extension QuranPageView {
 
         DispatchQueue.main.async {
             proxy.scrollTo("MUSHAF_PAGE_\(target)", anchor: .top)
-            currentStandardPage = target
-            storedMushafPageNumber = target
-            hasPerformedInitialMushafScroll = true
+            self.currentStandardPage = target
+            self.storedMushafPageNumber = target
+
+            // Explicitly sync Surah index for this page immediately
+            if let sections = mushafIndexByPage[target], let firstSection = sections.first {
+                if let surahIndex = viewModel.surahs.firstIndex(where: {
+                    $0.id == firstSection.surah.id
+                }) {
+                    if viewModel.currentSurahIndex != surahIndex {
+                        viewModel.currentSurahIndex = surahIndex
+                    }
+                }
+            }
+
+            self.hasPerformedInitialMushafScroll = true
+
+            // Trigger a direct sync to ensure Toolbar catches up
+            self.syncVisibleMushafPage(target)
         }
     }
 

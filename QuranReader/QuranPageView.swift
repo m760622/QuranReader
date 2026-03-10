@@ -1016,13 +1016,13 @@ struct QuranPageView: View {
                         .id("MUSHAF_PAGE_\(page)")
                         .background(
                             GeometryReader { geo in
-                                let minY = geo.frame(in: .named(contentSpace)).minY
-                                let anchorToken = Int(minY.rounded())
+                                let absoluteY = geo.frame(in: .named(contentSpace)).minY
+                                let anchorToken = Int(absoluteY.rounded())
                                 Color.clear
                                     .task(id: anchorToken) {
                                         scheduleMushafPageAnchorRegistration(
                                             page: page,
-                                            absoluteY: minY
+                                            absoluteY: absoluteY
                                         )
                                     }
                             }
