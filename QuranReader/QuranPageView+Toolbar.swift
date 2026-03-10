@@ -11,6 +11,57 @@ import SwiftUI
 extension QuranPageView {
     var stableTopChromeHeight: CGFloat { 78 }
 
+    @ViewBuilder
+    func surahMetaSecondRow(contextFontSize: CGFloat) -> some View {
+        HStack(spacing: 6) {
+            Text("ص \(chromeMushafPageNumber)")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(primaryGreen)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule().fill(primaryGreen.opacity(0.12))
+                )
+                .layoutPriority(1.5)
+
+            Text(currentSurahAyahCountLabel)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(primaryGreen)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule().fill(primaryGreen.opacity(0.12))
+                )
+                .layoutPriority(1.2)
+
+            Text(currentPageContextSubtitle)
+                .font(.system(size: contextFontSize, weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.68)
+                .truncationMode(.tail)
+                .foregroundColor(secondaryTextColor.opacity(0.8))
+                .layoutPriority(1)
+
+            if isAutoScrolling {
+                RemainingTimeTicker(
+                    remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
+                    resetToken:
+                        "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
+                    prefix: "",
+                    suffix: " د",
+                    font: .system(size: 10, weight: .bold, design: .monospaced),
+                    color: .orange.opacity(0.92),
+                    minWidth: 40
+                )
+                .minimumScaleFactor(0.8)
+            }
+        }
+    }
+
     struct RemainingTimeTicker: View {
         let remainingSeconds: Double?
         let resetToken: String
@@ -163,53 +214,7 @@ extension QuranPageView {
                             .foregroundColor(secondaryTextColor)
                     }
 
-                    HStack(spacing: 6) {
-                        if isAutoScrolling {
-                            RemainingTimeTicker(
-                                remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
-                                resetToken:
-                                    "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
-                                prefix: "",
-                                suffix: " د",
-                                font: .system(size: 10, weight: .bold, design: .monospaced),
-                                color: .orange.opacity(0.92),
-                                minWidth: 40
-                            )
-                            .minimumScaleFactor(0.8)
-                        }
-
-                        Text(currentPageContextSubtitle)
-                            .font(.system(size: 10, weight: .medium))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .truncationMode(.tail)
-                            .foregroundColor(secondaryTextColor.opacity(0.8))
-                            .layoutPriority(1)
-
-                        Text(currentSurahAyahCountLabel)
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(primaryGreen)
-                            .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule().fill(primaryGreen.opacity(0.12))
-                            )
-                            .layoutPriority(1.2)
-
-                        Text("ص \(chromeMushafPageNumber)")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(primaryGreen)
-                            .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule().fill(primaryGreen.opacity(0.12))
-                            )
-                            .layoutPriority(1.5)
-                    }
+                    surahMetaSecondRow(contextFontSize: 10)
                     .font(.system(size: 11, weight: .medium))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -219,26 +224,7 @@ extension QuranPageView {
                 // Quick Actions - Now on the LEFT (Last in RTL HStack)
                 HStack(spacing: 6) {
                     autoScrollSpeedControl
-                        .frame(maxWidth: 100)  // Limit slider width
                         .layoutPriority(1)
-
-                    // Auto-Scroll Play/Pause
-                    Button {
-                        if isAutoScrolling {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isAutoScrolling = false
-                            }
-                        } else {
-                            activateReadingModeForAutoScrollIfNeeded(starting: true)
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                isAutoScrolling = true
-                            }
-                        }
-                        lightHaptic()
-                    } label: {
-                        toolbarIcon(
-                            isAutoScrolling ? "pause.fill" : "play.fill", tint: primaryGreen)
-                    }
                 }
             }
             .padding(.horizontal, 4)
@@ -322,53 +308,7 @@ extension QuranPageView {
                         }
                     }
 
-                    HStack(spacing: 6) {
-                        // Page Number Pill
-                        Text("ص \(chromeMushafPageNumber)")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(primaryGreen)
-                            .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule().fill(primaryGreen.opacity(0.12))
-                            )
-                            .layoutPriority(1.5)
-
-                        Text(currentSurahAyahCountLabel)
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(primaryGreen)
-                            .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule().fill(primaryGreen.opacity(0.12))
-                            )
-                            .layoutPriority(1.1)
-
-                        Text(currentPageContextSubtitle)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.68)
-                            .truncationMode(.tail)
-                            .foregroundColor(secondaryTextColor.opacity(0.8))
-                            .layoutPriority(1)
-
-                        if isAutoScrolling {
-                            RemainingTimeTicker(
-                                remainingSeconds: estimatedTimeToFinishCurrentJuzSeconds,
-                                resetToken:
-                                    "\(chromeMushafPageNumber)-\(autoScrollMinutesPerPage)-\(isAutoScrolling)",
-                                prefix: "",
-                                suffix: " د",
-                                font: .system(size: 10, weight: .bold, design: .monospaced),
-                                color: .orange.opacity(0.92),
-                                minWidth: 40
-                            )
-                            .minimumScaleFactor(0.8)
-                        }
-                    }
+                    surahMetaSecondRow(contextFontSize: 11)
                     .font(.system(size: 11, weight: .medium))
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -613,8 +553,37 @@ extension QuranPageView {
 
     // MARK: - Auto Scroll Speed Slider
     var autoScrollSpeedControl: some View {
-        HStack(spacing: 6) {
-            Text("0")
+        HStack(spacing: 8) {
+            Button {
+                if isAutoScrolling {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isAutoScrolling = false
+                    }
+                } else {
+                    activateReadingModeForAutoScrollIfNeeded(starting: true)
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isAutoScrolling = true
+                    }
+                }
+                lightHaptic()
+            } label: {
+                Image(systemName: isAutoScrolling ? "pause.fill" : "play.fill")
+                    .rotationEffect(.degrees(isAutoScrolling ? 0 : 90))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(primaryGreen)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.black.opacity(viewModel.isNightMode ? 0.25 : 0.05))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(primaryGreen.opacity(0.12), lineWidth: 1)
+                            )
+                    )
+            }
+            .buttonStyle(.plain)
+
+            Text("7")
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundColor(textColor.opacity(0.65))
                 .frame(width: 10)
@@ -626,28 +595,28 @@ extension QuranPageView {
                 let usableWidth = max(geometry.size.width - thumbWidth, 1)
                 let stepWidth = usableWidth / CGFloat(segmentCount)
                 let level = autoScrollSpeedLevel
-                let thumbOffset = CGFloat(level) * stepWidth
+                let trailingOffset = CGFloat(segmentCount - level) * stepWidth
 
-                ZStack(alignment: .leading) {
+                ZStack(alignment: .trailing) {
                     Capsule()
                         .fill(textColor.opacity(0.12))
 
                     Capsule()
                         .fill(Color.orange.opacity(0.26))
-                        .frame(width: thumbOffset + (thumbWidth / 2))
+                        .frame(width: CGFloat(level) * stepWidth + (thumbWidth / 2))
 
                     ForEach(1..<segmentCount, id: \.self) { segment in
                         Rectangle()
                             .fill(textColor.opacity(0.18))
                             .frame(width: 1, height: 10)
-                            .offset(x: CGFloat(segment) * stepWidth + (thumbWidth / 2))
+                            .offset(x: -(CGFloat(segmentCount - segment) * stepWidth + (thumbWidth / 2)))
                     }
 
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Color.white.opacity(0.96))
                         .frame(width: thumbWidth, height: thumbHeight)
                         .shadow(color: Color.black.opacity(0.10), radius: 4, x: 0, y: 1)
-                        .offset(x: thumbOffset)
+                        .offset(x: -trailingOffset)
                 }
                 .frame(height: 20)
                 .contentShape(Rectangle())
@@ -668,11 +637,21 @@ extension QuranPageView {
             }
             .frame(width: 86, height: 20)
 
-            Text("7")
+            Text("0")
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundColor(textColor.opacity(0.65))
                 .frame(width: 10)
         }
-        .environment(\.layoutDirection, .leftToRight)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(viewModel.isNightMode ? 0.20 : 0.05))
+                .overlay(
+                    Capsule()
+                        .stroke(primaryGreen.opacity(viewModel.isNightMode ? 0.16 : 0.10), lineWidth: 1)
+                )
+        )
+        .environment(\.layoutDirection, .rightToLeft)
     }
 }
