@@ -171,17 +171,6 @@ extension QuranPageView {
     func syncVisibleMushafPageFromOffset(_ offset: Double) {
         guard Date() >= suppressChromeScrollUntil else { return }
 
-        // Handle pending jump timeout or clear if reached
-        if pendingMushafScrollTargetPage != nil {
-            let now = CFAbsoluteTimeGetCurrent()
-            // If we've been waiting for a jump for more than 1.5 seconds, clear it.
-            // This prevents the "Sync Lock" where the toolbar is stuck while content is elsewhere.
-            if lastMushafJumpAt > 0 && (now - lastMushafJumpAt) > 1.5 {
-                pendingMushafScrollTargetPage = nil
-            }
-        }
-
-        guard pendingMushafScrollTargetPage == nil else { return }
         guard !mushafPageAnchorYByPage.isEmpty else { return }
 
         // PERFORMANCE: Throttled anchor sorting
@@ -207,6 +196,21 @@ extension QuranPageView {
         } else {
             candidatePage = sortedAnchors[candidateIndex].key
         }
+
+        if let targetPage = pendingMushafScrollTargetPage {
+            if candidatePage == targetPage {
+                syncVisibleMushafPage(candidatePage)
+                return
+            }
+
+            // Release stale jump locks as soon as the visible content clearly diverges.
+            if abs(candidatePage - targetPage) > 1 || (lastMushafJumpAt > 0 && (now - lastMushafJumpAt) > 0.45) {
+                pendingMushafScrollTargetPage = nil
+            } else {
+                return
+            }
+        }
+
         syncVisibleMushafPage(candidatePage)
     }
 
