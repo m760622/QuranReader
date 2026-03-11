@@ -41,9 +41,13 @@ extension QuranPageView {
             Text(currentPageContextSubtitle)
                 .font(.system(size: contextFontSize, weight: .medium))
                 .lineLimit(1)
-                .minimumScaleFactor(0.68)
-                .truncationMode(.tail)
+                .fixedSize(horizontal: true, vertical: false)
                 .foregroundColor(secondaryTextColor.opacity(0.8))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule().fill(secondaryTextColor.opacity(0.08))
+                )
                 .layoutPriority(1)
 
             if isAutoScrolling {
@@ -308,7 +312,7 @@ extension QuranPageView {
                         }
                     }
 
-                    surahMetaSecondRow(contextFontSize: 11)
+                    surahMetaSecondRow(contextFontSize: 10)
                     .font(.system(size: 11, weight: .medium))
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
