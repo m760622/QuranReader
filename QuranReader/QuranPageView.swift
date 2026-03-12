@@ -1396,6 +1396,10 @@ struct QuranPageView: View {
     }
 
     func goToMushafPage(_ page: Int) {
+        // Rule 12: Clear old anchors to prevent "Anchor Pollution"
+        mushafPageAnchorYByPage = [:]
+        lastKnownVisibleMushafPageForChrome = page
+        
         let maxPage = max(viewModel.maxMushafPage, 1)
         let clamped = min(max(page, 1), maxPage)
         suppressVerseContextMenusTemporarily()
@@ -1460,6 +1464,11 @@ struct QuranPageView: View {
         guard let page = mushafPageForVerse(surahIndex: surahIndex, verseId: verseId) else {
             return
         }
+        
+        // Rule 12: Clear old anchors when jumping to a new surah/verse
+        mushafPageAnchorYByPage = [:]
+        lastKnownVisibleMushafPageForChrome = page
+        
         suppressVerseContextMenusTemporarily()
         setPendingMushafNavigationTarget(surahId: surahId, verseId: verseId)
         mushafPreciseScrollRequestID &+= 1
