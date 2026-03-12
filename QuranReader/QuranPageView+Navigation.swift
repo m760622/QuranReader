@@ -217,6 +217,10 @@ extension QuranPageView {
     func syncVisibleMushafPage(_ page: Int) {
         guard Date() >= suppressChromeScrollUntil else { return }
 
+        if lastKnownVisibleMushafPageForChrome != page {
+            lastKnownVisibleMushafPageForChrome = page
+        }
+
         // Clear pending jumps BEFORE any early return checks!
         if let startupTarget = startupMushafRestorePage {
             if page == startupTarget {

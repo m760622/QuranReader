@@ -12,6 +12,47 @@ extension QuranPageView {
     var stableTopChromeHeight: CGFloat { 78 }
 
     @ViewBuilder
+    func surahTitleChip(fontSize: CGFloat, iconSize: CGFloat, horizontalPadding: CGFloat, verticalPadding: CGFloat, cornerRadius: CGFloat) -> some View {
+        HStack(spacing: 6) {
+            Button {
+                showSurahList = true
+                lightHaptic()
+            } label: {
+                HStack(spacing: 4) {
+                    Text(currentSurahTitle)
+                        .font(.system(size: fontSize, weight: .bold, design: .serif))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: iconSize, weight: .bold))
+                }
+                .foregroundColor(primaryGreen)
+                .padding(.horizontal, horizontalPadding)
+                .padding(.vertical, verticalPadding)
+                .background(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(primaryGreen.opacity(viewModel.isNightMode ? 0.15 : 0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(
+                            primaryGreen.opacity(viewModel.isNightMode ? 0.25 : 0.15),
+                            lineWidth: 1)
+                )
+            }
+            .layoutPriority(2)
+
+            if let additionalLabel = currentAdditionalSurahsLabel {
+                pill(
+                    text: additionalLabel,
+                    tint: primaryGreen
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
     func surahMetaSecondRow(contextFontSize: CGFloat) -> some View {
         HStack(spacing: 6) {
             Text("ص \(chromeMushafPageNumber)")
@@ -37,18 +78,6 @@ extension QuranPageView {
                     Capsule().fill(primaryGreen.opacity(0.12))
                 )
                 .layoutPriority(1.2)
-
-            Text(currentPageContextSubtitle)
-                .font(.system(size: contextFontSize, weight: .medium))
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .foregroundColor(secondaryTextColor.opacity(0.8))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule().fill(secondaryTextColor.opacity(0.08))
-                )
-                .layoutPriority(1)
 
             if isAutoScrolling {
                 RemainingTimeTicker(
@@ -176,34 +205,13 @@ extension QuranPageView {
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 8) {
-                        Button {
-                            showSurahList = true
-                            lightHaptic()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(currentSurahTitle)
-                                    .font(.system(size: 14, weight: .bold, design: .serif))
-                                    .lineLimit(1)
-                                    .fixedSize(horizontal: true, vertical: false)
-
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 8, weight: .bold))
-                            }
-                            .foregroundColor(primaryGreen)
-                            .padding(.horizontal, 3)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(primaryGreen.opacity(viewModel.isNightMode ? 0.15 : 0.08))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(
-                                        primaryGreen.opacity(viewModel.isNightMode ? 0.25 : 0.15),
-                                        lineWidth: 1)
-                            )
-                        }
-                        .layoutPriority(2)
+                        surahTitleChip(
+                            fontSize: 14,
+                            iconSize: 8,
+                            horizontalPadding: 3,
+                            verticalPadding: 4,
+                            cornerRadius: 10
+                        )
 
                         pill(
                             text: currentJuzLabel,
@@ -211,11 +219,10 @@ extension QuranPageView {
                             dualTone: true
                         )
 
-                        Text(currentHizbLabel)
-                            .font(.system(size: 9).weight(.semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .foregroundColor(secondaryTextColor)
+                        pill(
+                            text: currentHizbLabel,
+                            tint: secondaryTextColor
+                        )
                     }
 
                     surahMetaSecondRow(contextFontSize: 10)
@@ -267,34 +274,13 @@ extension QuranPageView {
             HStack(alignment: .center, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 8) {
-                        Button {
-                            showSurahList = true
-                            lightHaptic()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(currentSurahTitle)
-                                    .font(.system(size: 16, weight: .bold, design: .serif))
-                                    .lineLimit(1)
-                                    .fixedSize(horizontal: true, vertical: false)
-
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 10, weight: .bold))
-                            }
-                            .foregroundColor(primaryGreen)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(primaryGreen.opacity(viewModel.isNightMode ? 0.15 : 0.08))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(
-                                        primaryGreen.opacity(viewModel.isNightMode ? 0.25 : 0.15),
-                                        lineWidth: 1)
-                            )
-                        }
-                        .layoutPriority(2)  // High priority to prevent truncation
+                        surahTitleChip(
+                            fontSize: 16,
+                            iconSize: 10,
+                            horizontalPadding: 10,
+                            verticalPadding: 6,
+                            cornerRadius: 12
+                        )
 
                         // Context Information (Integrated)
                         HStack(spacing: 6) {
@@ -304,11 +290,10 @@ extension QuranPageView {
                                 dualTone: true
                             )
 
-                            Text(currentHizbLabel)
-                                .font(.system(size: 9).weight(.semibold))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                                .foregroundColor(secondaryTextColor)
+                            pill(
+                                text: currentHizbLabel,
+                                tint: secondaryTextColor
+                            )
                         }
                     }
 

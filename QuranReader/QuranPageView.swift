@@ -349,6 +349,7 @@ struct QuranPageView: View {
     @State var toastMessage = ""
     @State var isShowingToast = false
     @State var currentStandardPage: Int? = nil
+    @State var lastKnownVisibleMushafPageForChrome: Int? = nil
     @State var mushafPageAnchorYByPage: [Int: CGFloat] = [:]
     @State var mushafIndexByPage: [Int: [MushafSurahSection]] = [:]
     @State var juzPageBoundsByNumber: [Int: (min: Int, max: Int)] = [:]
@@ -567,11 +568,19 @@ struct QuranPageView: View {
             }
         }
         if let firstName = orderedNames.first {
-            if orderedNames.count == 1 { return firstName }
-            return "\(firstName) +\(orderedNames.count - 1)"
+            return firstName
         }
         let fallback = viewModel.currentSurah?.name ?? "..."
         return fallback.replacingOccurrences(of: "سورة ", with: "")
+    }
+
+    var currentAdditionalSurahsLabel: String? {
+        let page = chromeMushafPageNumber
+        let sections = mushafSurahSections(for: page)
+        let uniqueCount = Set(sections.map(\.surah.id)).count
+        let additionalCount = max(0, uniqueCount - 1)
+        guard additionalCount > 0 else { return nil }
+        return "+\(additionalCount)"
     }
 
     var progressLabel: String {
@@ -607,6 +616,14 @@ struct QuranPageView: View {
                     return target
                 }
                 return visiblePage
+            }
+            if let lastKnownVisibleMushafPageForChrome {
+                if let target = pendingMushafScrollTargetPage,
+                    abs(lastKnownVisibleMushafPageForChrome - target) <= 1
+                {
+                    return target
+                }
+                return lastKnownVisibleMushafPageForChrome
             }
             if let target = pendingMushafScrollTargetPage {
                 return target
@@ -1473,9 +1490,13 @@ struct QuranPageView: View {
             pendingFastScrollPage = nil
             fastScrollSettleTask?.cancel()
             rebuildMushafIndexIfNeeded()
-            currentStandardPage = storedMushafPageNumber
-            jumpSliderValue = Double(storedMushafPageNumber)
-            pendingMushafScrollTargetPage = storedMushafPageNumber
+            let restorePage =
+                lastKnownVisibleMushafPageForChrome
+                ?? currentStandardPage
+                ?? storedMushafPageNumber
+            currentStandardPage = restorePage
+            jumpSliderValue = Double(restorePage)
+            pendingMushafScrollTargetPage = restorePage
         } else {
             currentStandardPage = viewModel.currentMushafPage
             jumpSliderValue = Double(viewModel.currentMushafPage)
