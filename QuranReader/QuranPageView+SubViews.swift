@@ -126,9 +126,6 @@ extension QuranPageView {
                             isHidden: false
                         )
                         .id("DIV_S\(surahId)_P\(group.pageNumber)")
-                        .onAppear {
-                            onPageChange?(group.pageNumber)
-                        }
                         .background(
                             GeometryReader { geo in
                                 // Use the named coordinate space directly to get absolute position relative to content top

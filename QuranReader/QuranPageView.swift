@@ -590,6 +590,14 @@ struct QuranPageView: View {
     }
 
     var currentSurahAyahCountLabel: String {
+        let page = chromeMushafPageNumber
+        let sections = mushafSurahSections(for: page)
+        // If the page has multiple surahs, we show the count for the first one (primary) 
+        // to stay consistent with currentSurahTitle
+        if let firstSurah = sections.first?.surah {
+            return "\(firstSurah.verses.count) آية"
+        }
+        
         if let surah = viewModel.currentSurah {
             return "\(surah.verses.count) آية"
         }
@@ -617,16 +625,13 @@ struct QuranPageView: View {
                 }
                 return visiblePage
             }
-            if let lastKnownVisibleMushafPageForChrome {
-                if let target = pendingMushafScrollTargetPage,
-                    abs(lastKnownVisibleMushafPageForChrome - target) <= 1
-                {
-                    return target
-                }
-                return lastKnownVisibleMushafPageForChrome
-            }
+            // If visibility check failed (maybe anchors not loaded), check pending jump 
             if let target = pendingMushafScrollTargetPage {
                 return target
+            }
+            // Check last known
+            if let lastKnownVisibleMushafPageForChrome {
+                return lastKnownVisibleMushafPageForChrome
             }
         }
         return currentStandardPage ?? storedMushafPageNumber
