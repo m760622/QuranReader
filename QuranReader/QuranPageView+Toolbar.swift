@@ -572,7 +572,7 @@ extension QuranPageView {
             }
             .buttonStyle(.plain)
 
-            Text("7")
+            Text("0")
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundColor(textColor.opacity(0.65))
                 .frame(width: 10)
@@ -584,7 +584,7 @@ extension QuranPageView {
                 let usableWidth = max(geometry.size.width - thumbWidth, 1)
                 let stepWidth = usableWidth / CGFloat(segmentCount)
                 let level = autoScrollSpeedLevel
-                let trailingOffset = CGFloat(segmentCount - level) * stepWidth
+                let trailingOffset = CGFloat(level) * stepWidth
 
                 ZStack(alignment: .trailing) {
                     Capsule()
@@ -598,7 +598,7 @@ extension QuranPageView {
                         Rectangle()
                             .fill(textColor.opacity(0.18))
                             .frame(width: 1, height: 10)
-                            .offset(x: -(CGFloat(segmentCount - segment) * stepWidth + (thumbWidth / 2)))
+                            .offset(x: -(CGFloat(segment) * stepWidth + (thumbWidth / 2)))
                     }
 
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -614,10 +614,11 @@ extension QuranPageView {
                         .onChanged { value in
                             let proposed = ((value.location.x - (thumbWidth / 2)) / stepWidth)
                                 .rounded()
-                            let newLevel = min(
+                            let indexFromLeft = min(
                                 max(Int(proposed), 0),
                                 autoScrollSpeedPresets.count - 1
                             )
+                            let newLevel = (autoScrollSpeedPresets.count - 1) - indexFromLeft
                             guard newLevel != autoScrollSpeedLevel else { return }
                             setAutoScrollSpeedLevel(newLevel)
                             lightHaptic()
@@ -625,8 +626,9 @@ extension QuranPageView {
                 )
             }
             .frame(width: 86, height: 20)
+            .environment(\.layoutDirection, .leftToRight)
 
-            Text("0")
+            Text("7")
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundColor(textColor.opacity(0.65))
                 .frame(width: 10)
