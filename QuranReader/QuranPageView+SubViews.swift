@@ -872,8 +872,9 @@ extension QuranPageView {
                     guard abs(stableLayoutWidth - snappedWidth) > 0.25 else { return }
 
                     stableLayoutWidth = snappedWidth
+                    let horizontalPadding = textContainerInset.left + textContainerInset.right
                     textContainer.size = CGSize(
-                        width: snappedWidth,
+                        width: snappedWidth - horizontalPadding,
                         height: CGFloat.greatestFiniteMagnitude
                     )
 
@@ -892,8 +893,8 @@ extension QuranPageView {
                 textView.isSelectable = false
                 textView.isScrollEnabled = false
                 textView.backgroundColor = .clear
-                // Rely on SwiftUI padding; set internal insets to zero to prevent narrow text stretching
-                textView.textContainerInset = .zero
+                // Use a safe horizontal inset to prevent diacritics from clipping at boundaries
+                textView.textContainerInset = UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
                 textView.textContainer.lineFragmentPadding = 0
                 textView.textContainer.widthTracksTextView = true
                 textView.textContainer.lineBreakMode = .byWordWrapping
