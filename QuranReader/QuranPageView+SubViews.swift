@@ -861,6 +861,22 @@ extension QuranPageView {
 
             final class StableLayoutTextView: UITextView {
                 private(set) var stableLayoutWidth: CGFloat = 0
+                private var sourceAttributedText: NSAttributedString?
+                private var appliedLineSpacing: CGFloat = 0
+                private var lastJustifiedContentWidth: CGFloat = -1
+
+                func setSourceAttributedText(_ source: NSAttributedString, lineSpacing: CGFloat) {
+                    if let existing = sourceAttributedText,
+                        existing.isEqual(to: source),
+                        abs(appliedLineSpacing - lineSpacing) < 0.01
+                    {
+                        return
+                    }
+                    sourceAttributedText = source
+                    appliedLineSpacing = lineSpacing
+                    lastJustifiedContentWidth = -1
+                    refreshJustifiedTextIfNeeded()
+                }
 
                 func applyStableLayoutWidth(_ width: CGFloat) {
                     let screenScale =
@@ -869,16 +885,19 @@ extension QuranPageView {
                         ?? traitCollection.displayScale
                     let snappedWidth = floor(width * screenScale) / screenScale
                     guard snappedWidth.isFinite, snappedWidth > 0 else { return }
-                    guard abs(stableLayoutWidth - snappedWidth) > 0.25 else { return }
-
-                    stableLayoutWidth = snappedWidth
-                    updateTextContainerSize(width: snappedWidth)
+                    let widthChanged = abs(stableLayoutWidth - snappedWidth) > 0.25
+                    if widthChanged {
+                        stableLayoutWidth = snappedWidth
+                        updateTextContainerSize(width: snappedWidth)
+                    }
+                    refreshJustifiedTextIfNeeded()
                 }
 
                 override func layoutSubviews() {
                     super.layoutSubviews()
                     let currentWidth = bounds.size.width > 0 ? bounds.size.width : stableLayoutWidth
                     updateTextContainerSize(width: currentWidth)
+                    refreshJustifiedTextIfNeeded()
                 }
 
                 private func updateTextContainerSize(width: CGFloat) {
@@ -889,6 +908,165 @@ extension QuranPageView {
                         textContainer.size = CGSize(
                             width: targetWidth,
                             height: CGFloat.greatestFiniteMagnitude
+                        )
+                    }
+                }
+
+                private var contentWidthForJustification: CGFloat {
+                    let fromContainer = textContainer.size.width
+                    if fromContainer.isFinite, fromContainer > 1 {
+                        return fromContainer
+                    }
+                    let horizontalPadding = textContainerInset.left + textContainerInset.right
+                    let fromStable = stableLayoutWidth - horizontalPadding
+                    return fromStable.isFinite ? fromStable : 0
+                }
+
+                private func refreshJustifiedTextIfNeeded() {
+                    guard let source = sourceAttributedText else { return }
+                    let contentWidth = contentWidthForJustification
+                    guard contentWidth > 1 else {
+                        // Width unknown yet — show right-aligned text so first paint isn't empty.
+                        let styled = Self.applyParagraphStyle(
+                            to: source, lineSpacing: appliedLineSpacing)
+                        if attributedText?.string != styled.string {
+                            attributedText = styled
+                        }
+                        return
+                    }
+                    if abs(contentWidth - lastJustifiedContentWidth) < 0.5,
+                        (attributedText?.length ?? 0) > 0
+                    {
+                        return
+                    }
+                    lastJustifiedContentWidth = contentWidth
+                    let styled = Self.applyParagraphStyle(
+                        to: source, lineSpacing: appliedLineSpacing)
+                    // Word-spacing justification (not TextKit .justified): expands only spaces
+                    // between words so Uthmani tashkeel stays attached to base letters.
+                    attributedText = Self.justifyByExpandingWordSpacing(
+                        styled, toWidth: contentWidth)
+                    invalidateIntrinsicContentSize()
+                }
+
+                static func applyParagraphStyle(
+                    to source: NSAttributedString,
+                    lineSpacing: CGFloat
+                ) -> NSAttributedString {
+                    let mutable = NSMutableAttributedString(attributedString: source)
+                    let fullRange = NSRange(location: 0, length: mutable.length)
+                    guard fullRange.length > 0 else { return mutable }
+
+                    let style = NSMutableParagraphStyle()
+                    style.lineSpacing = lineSpacing
+                    // Keep .right: visual full-width comes from word-spacing kern, not .justified.
+                    style.alignment = .right
+                    style.baseWritingDirection = .rightToLeft
+                    mutable.addAttribute(.paragraphStyle, value: style, range: fullRange)
+
+                    // Remove lineSpacing from the LAST paragraph so consecutive chunks
+                    // don't create a visible gap between UITextViews.
+                    let text = mutable.string as NSString
+                    let lastParagraphRange = text.paragraphRange(
+                        for: NSRange(location: max(0, text.length - 1), length: 0))
+                    if lastParagraphRange.length > 0 {
+                        let lastStyle = NSMutableParagraphStyle()
+                        lastStyle.lineSpacing = 0
+                        lastStyle.alignment = .right
+                        lastStyle.baseWritingDirection = .rightToLeft
+                        mutable.addAttribute(
+                            .paragraphStyle, value: lastStyle, range: lastParagraphRange)
+                    }
+
+                    return mutable
+                }
+
+                /// Justifies Arabic by widening inter-word spaces only, then locks line breaks
+                /// with U+2028 so TextKit cannot reflow after kerning (and cannot stretch glyphs).
+                static func justifyByExpandingWordSpacing(
+                    _ source: NSAttributedString,
+                    toWidth width: CGFloat
+                ) -> NSAttributedString {
+                    guard width > 1, source.length > 0 else { return source }
+
+                    // Slightly tighten measure width so expanded lines don't overflow TextKit.
+                    let measureWidth = max(1, width - 0.5)
+                    let typesetter = CTTypesetterCreateWithAttributedString(
+                        source as CFAttributedString)
+                    let result = NSMutableAttributedString()
+                    let nsString = source.string as NSString
+                    var start = 0
+                    let length = source.length
+
+                    while start < length {
+                        let count = CTTypesetterSuggestLineBreak(
+                            typesetter, start, Double(measureWidth))
+                        guard count > 0 else { break }
+
+                        let lineRange = NSRange(location: start, length: count)
+                        let line = NSMutableAttributedString(
+                            attributedString: source.attributedSubstring(from: lineRange))
+                        let nextIndex = start + count
+                        let isLastLine = nextIndex >= length
+                        let lastCharInLine = nsString.character(at: nextIndex - 1)
+                        let lineEndsParagraph =
+                            lastCharInLine == 10 || lastCharInLine == 13
+                        let shouldJustify = !isLastLine && !lineEndsParagraph
+
+                        if shouldJustify {
+                            let ctLine = CTTypesetterCreateLine(
+                                typesetter, CFRangeMake(start, count))
+                            let naturalWidth = CGFloat(
+                                CTLineGetTypographicBounds(ctLine, nil, nil, nil))
+                            let slack = measureWidth - naturalWidth
+                            if slack > 0.75 {
+                                expandWordSpacing(in: line, extraWidth: slack)
+                            }
+                        }
+
+                        result.append(line)
+
+                        if !isLastLine, !lineEndsParagraph {
+                            var sepAttrs: [NSAttributedString.Key: Any] = [:]
+                            if line.length > 0 {
+                                sepAttrs = line.attributes(
+                                    at: line.length - 1, effectiveRange: nil)
+                                sepAttrs.removeValue(forKey: .link)
+                                sepAttrs.removeValue(forKey: .kern)
+                                sepAttrs.removeValue(forKey: .backgroundColor)
+                                sepAttrs.removeValue(
+                                    forKey: QuranPageView.searchMatchScrollAttribute)
+                            }
+                            result.append(
+                                NSAttributedString(string: "\u{2028}", attributes: sepAttrs))
+                        }
+
+                        start = nextIndex
+                    }
+
+                    return result.length > 0 ? result : source
+                }
+
+                private static func expandWordSpacing(
+                    in line: NSMutableAttributedString,
+                    extraWidth: CGFloat
+                ) {
+                    let str = line.string as NSString
+                    var spaceLocations: [Int] = []
+                    spaceLocations.reserveCapacity(16)
+                    for i in 0..<str.length {
+                        let ch = str.character(at: i)
+                        if ch == 0x20 || ch == 0x00A0 {
+                            spaceLocations.append(i)
+                        }
+                    }
+                    guard !spaceLocations.isEmpty else { return }
+                    let kern = extraWidth / CGFloat(spaceLocations.count)
+                    for loc in spaceLocations {
+                        line.addAttribute(
+                            .kern,
+                            value: kern,
+                            range: NSRange(location: loc, length: 1)
                         )
                     }
                 }
@@ -906,10 +1084,11 @@ extension QuranPageView {
                 textView.isSelectable = false
                 textView.isScrollEnabled = false
                 textView.backgroundColor = .clear
-                // Use a safe horizontal inset to prevent diacritics from clipping at boundaries
-                textView.textContainerInset = UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
+                // Horizontal inset keeps Uthmani tashkeel from clipping at line edges.
+                textView.textContainerInset = UIEdgeInsets(top: 0, left: 4, bottom: 0, right: 4)
                 textView.textContainer.lineFragmentPadding = 0
-                textView.textContainer.widthTracksTextView = true
+                // Own textContainer.width ourselves in StableLayoutTextView; avoid fighting widthTracksTextView.
+                textView.textContainer.widthTracksTextView = false
                 textView.textContainer.lineBreakMode = .byWordWrapping
                 textView.textContainer.maximumNumberOfLines = 0
                 textView.clipsToBounds = false
@@ -919,7 +1098,9 @@ extension QuranPageView {
                 textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
                 textView.adjustsFontForContentSizeCategory = true
                 textView.semanticContentAttribute = .forceRightToLeft
-                textView.textAlignment = .justified
+                // Never use TextKit .justified for Uthmani: it stretches intra-word gaps and
+                // detaches tashkeel. Full width is achieved via word-spacing kern instead.
+                textView.textAlignment = .right
                 textView.layoutManager.allowsNonContiguousLayout = false
                 textView.linkTextAttributes = [
                     .underlineStyle: 0
@@ -946,8 +1127,7 @@ extension QuranPageView {
                 context.coordinator.textView = textView
                 context.coordinator.longPressGesture = longGesture
 
-                // Assign immediately to prevent layout jumps on first render
-                textView.attributedText = withParagraphStyle(appliedTo: attributedText)
+                textView.setSourceAttributedText(attributedText, lineSpacing: lineSpacing)
 
                 return textView
             }
@@ -961,25 +1141,13 @@ extension QuranPageView {
                 context.coordinator.longPressGesture?.isEnabled = contextMenuEnabled
                 context.coordinator.preciseScrollTargetURL = preciseScrollTargetURL
 
-                let newText = withParagraphStyle(appliedTo: attributedText)
+                if uiView.textAlignment != .right {
+                    uiView.textAlignment = .right
+                }
 
-                // PERFORMANCE: Only update if anything actually changed.
-                // Comparing attribute lengths and string content is much faster than full attributed equality.
-                if uiView.attributedText.length != newText.length
-                    || uiView.attributedText.string != newText.string
-                {
-                    uiView.attributedText = newText
-                    uiView.invalidateIntrinsicContentSize()
-
-                    // Optimization: Use setNeedsLayout instead of layoutIfNeeded to coalesce layout passes
-                    uiView.setNeedsLayout()
-                } else {
-                    // Check for potential attribute changes even if string remains same (like highlights)
-                    // But don't force layout unless really needed.
-                    if !uiView.attributedText.isEqual(to: newText) {
-                        uiView.attributedText = newText
-                        uiView.setNeedsLayout()
-                    }
+                if let stableTextView = uiView as? StableLayoutTextView {
+                    stableTextView.setSourceAttributedText(
+                        attributedText, lineSpacing: lineSpacing)
                 }
 
                 context.coordinator.performPreciseScrollIfNeeded(requestID: preciseScrollRequestID)
@@ -992,41 +1160,14 @@ extension QuranPageView {
             ) -> CGSize? {
                 guard let width = proposal.width else { return nil }
                 if let stableTextView = uiView as? StableLayoutTextView {
+                    stableTextView.setSourceAttributedText(
+                        attributedText, lineSpacing: lineSpacing)
                     stableTextView.applyStableLayoutWidth(width)
                 }
                 let fitting = uiView.sizeThatFits(
                     CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
                 )
                 return CGSize(width: width, height: ceil(fitting.height))
-            }
-
-            func withParagraphStyle(appliedTo source: NSAttributedString)
-                -> NSAttributedString
-            {
-                let mutable = NSMutableAttributedString(attributedString: source)
-                let fullRange = NSRange(location: 0, length: mutable.length)
-
-                let style = NSMutableParagraphStyle()
-                style.lineSpacing = lineSpacing
-                style.alignment = .justified
-                style.baseWritingDirection = .rightToLeft
-                mutable.addAttribute(.paragraphStyle, value: style, range: fullRange)
-
-                // Restore: Remove lineSpacing from the LAST paragraph so consecutive chunks
-                // don't create a visible gap between UITextViews.
-                let text = mutable.string as NSString
-                let lastParagraphRange = text.paragraphRange(
-                    for: NSRange(location: max(0, text.length - 1), length: 0))
-                if lastParagraphRange.length > 0 {
-                    let lastStyle = NSMutableParagraphStyle()
-                    lastStyle.lineSpacing = 0
-                    lastStyle.alignment = .justified
-                    lastStyle.baseWritingDirection = .rightToLeft
-                    mutable.addAttribute(
-                        .paragraphStyle, value: lastStyle, range: lastParagraphRange)
-                }
-
-                return mutable
             }
 
             final class Coordinator: NSObject, UIGestureRecognizerDelegate {
