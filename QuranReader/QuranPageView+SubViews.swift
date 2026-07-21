@@ -872,18 +872,19 @@ extension QuranPageView {
                     guard abs(stableLayoutWidth - snappedWidth) > 0.25 else { return }
 
                     stableLayoutWidth = snappedWidth
-                    updateTextContainerSize()
+                    updateTextContainerSize(width: snappedWidth)
                 }
 
                 override func layoutSubviews() {
                     super.layoutSubviews()
-                    updateTextContainerSize()
+                    let currentWidth = bounds.size.width > 0 ? bounds.size.width : stableLayoutWidth
+                    updateTextContainerSize(width: currentWidth)
                 }
 
-                private func updateTextContainerSize() {
-                    guard stableLayoutWidth > 0 else { return }
+                private func updateTextContainerSize(width: CGFloat) {
+                    guard width > 0 else { return }
                     let horizontalPadding = textContainerInset.left + textContainerInset.right
-                    let targetWidth = stableLayoutWidth - horizontalPadding
+                    let targetWidth = width - horizontalPadding
                     if textContainer.size.width != targetWidth {
                         textContainer.size = CGSize(
                             width: targetWidth,
