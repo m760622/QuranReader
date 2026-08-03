@@ -136,9 +136,11 @@ public final class DatabaseManager: @unchecked Sendable {
                 t.column("surahId")
                 t.column("verseId")
                 t.column("surahName")
+                t.column("surahNameArabicBare")
                 t.column("verseText")
                 t.column("verseTextArabicBare")
                 t.column("tafsirText")
+                t.column("tafsirTextArabicBare")
                 t.column("englishText")
                 t.column("swedishText")
                 // Using unicode61 tokenizer to strip diacritics automatically if needed

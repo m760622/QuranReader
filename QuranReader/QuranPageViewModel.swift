@@ -732,12 +732,14 @@ final class QuranPageViewModel: ObservableObject {
 
                 if queryLooksArabic {
                     let verseCol = Column(
-                        arabicMatchMode == .exact
-                            ? "verseText"
-                            : (arabicMatchMode == .noDiacritics
-                                ? "verseTextArabicBare" : "verseTextArabicBare"))  // Simple mapping
-                    let surahCol = Column("surahName")
-                    let tafsirCol = Column("tafsirText")
+                        arabicMatchMode == .exact ? "verseText" : "verseTextArabicBare"
+                    )
+                    let surahCol = Column(
+                        arabicMatchMode == .exact ? "surahName" : "surahNameArabicBare"
+                    )
+                    let tafsirCol = Column(
+                        arabicMatchMode == .exact ? "tafsirText" : "tafsirTextArabicBare"
+                    )
 
                     if scopeAllows(scope, .verseText) {
                         conditions.append(verseCol.like("%\(arabicQuery)%"))
@@ -798,9 +800,13 @@ final class QuranPageViewModel: ObservableObject {
                             || entry.verseTextArabicBare.contains(arabicQuery)
                         {
                             matchSource = .verseText
-                        } else if entry.surahName.contains(trimmedQuery) {
+                        } else if entry.surahName.contains(trimmedQuery)
+                            || (entry.surahNameArabicBare?.contains(arabicQuery) == true)
+                        {
                             matchSource = .surahName
-                        } else if entry.tafsirText?.contains(arabicQuery) == true {
+                        } else if (entry.tafsirText?.contains(trimmedQuery) == true)
+                            || (entry.tafsirTextArabicBare?.contains(arabicQuery) == true)
+                        {
                             matchSource = .tafsir
                         }
                     }
@@ -901,7 +907,7 @@ final class QuranPageViewModel: ObservableObject {
         case .all:
             return true
         case .quran:
-            return source == .verseText
+            return source == .verseText || source == .surahName
         case .tafsir:
             return source == .tafsir
         case .translations:
@@ -1460,13 +1466,64 @@ final class QuranPageViewModel: ObservableObject {
         }
     }
 
+    func allRangesOfNormalizedQuery(_ query: String, in text: String) -> [Range<String.Index>] {
+        let normQuery = normalizeArabic(query)
+        guard !normQuery.isEmpty else { return [] }
+
+        var normChars = ""
+        var map: [String.Index] = []
+
+        for idx in text.indices {
+            let charStr = String(text[idx])
+            let normCharStr = normalizeArabic(charStr)
+            if !normCharStr.isEmpty {
+                normChars.append(normCharStr)
+                map.append(idx)
+            }
+        }
+
+        var ranges: [Range<String.Index>] = []
+        var searchStart = normChars.startIndex
+
+        while searchStart < normChars.endIndex,
+            let normRange = normChars[searchStart...].range(of: normQuery)
+        {
+            let startNormIdx = normChars.distance(
+                from: normChars.startIndex, to: normRange.lowerBound)
+            let endNormIdx =
+                normChars.distance(from: normChars.startIndex, to: normRange.upperBound) - 1
+
+            guard map.indices.contains(startNormIdx), map.indices.contains(endNormIdx) else {
+                break
+            }
+
+            let origStart = map[startNormIdx]
+            let origEnd = text.index(after: map[endNormIdx])
+            ranges.append(origStart..<origEnd)
+            searchStart = normRange.upperBound
+        }
+
+        return ranges
+    }
+
     func makeSnippet(_ text: String, query: String, maxLength: Int = 180) -> String? {
         let cleaned = text.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return nil }
 
-        if let range = cleaned.range(of: query, options: [.caseInsensitive, .diacriticInsensitive])
-        {
+        let matchRange: Range<String.Index>? = {
+            if let r = cleaned.range(
+                of: query, options: [.caseInsensitive, .diacriticInsensitive])
+            {
+                return r
+            }
+            if containsArabic(cleaned) {
+                return allRangesOfNormalizedQuery(query, in: cleaned).first
+            }
+            return nil
+        }()
+
+        if let range = matchRange {
             let start =
                 cleaned.index(range.lowerBound, offsetBy: -70, limitedBy: cleaned.startIndex)
                 ?? cleaned.startIndex
@@ -1480,9 +1537,13 @@ final class QuranPageViewModel: ObservableObject {
             return snippet
         }
 
-        if cleaned.count <= maxLength { return cleaned }
-        return String(cleaned.prefix(maxLength)).trimmingCharacters(in: .whitespacesAndNewlines)
-            + " …"
+        let prefixEnd =
+            cleaned.index(cleaned.startIndex, offsetBy: maxLength, limitedBy: cleaned.endIndex)
+            ?? cleaned.endIndex
+        var snippet = String(cleaned[..<prefixEnd]).trimmingCharacters(
+            in: .whitespacesAndNewlines)
+        if prefixEnd < cleaned.endIndex { snippet += " …" }
+        return snippet
     }
 
     func quranVerseText(for surahId: Int, verseId: Int) -> String {

@@ -421,16 +421,31 @@ extension QuranPageView {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedQuery.count >= 2 else { return attributed }
 
-        var searchStart = attributed.startIndex
-        while searchStart < attributed.endIndex,
-            let range = attributed[searchStart...].range(
-                of: trimmedQuery,
-                options: [.caseInsensitive, .diacriticInsensitive]
-            )
-        {
-            attributed[range].backgroundColor = .yellow.opacity(0.35)
-            attributed[range].foregroundColor = viewModel.isNightMode ? .white : .black
-            searchStart = range.upperBound
+        let ranges: [Range<String.Index>] = {
+            if viewModel.containsArabic(trimmedQuery) {
+                let normQuery = viewModel.normalizeArabic(trimmedQuery)
+                return viewModel.allRangesOfNormalizedQuery(normQuery, in: text)
+            } else {
+                var res: [Range<String.Index>] = []
+                var searchStart = text.startIndex
+                while searchStart < text.endIndex,
+                    let range = text[searchStart...].range(
+                        of: trimmedQuery,
+                        options: [.caseInsensitive, .diacriticInsensitive]
+                    )
+                {
+                    res.append(range)
+                    searchStart = range.upperBound
+                }
+                return res
+            }
+        }()
+
+        for range in ranges {
+            if let attrRange = Range<AttributedString.Index>(range, in: attributed) {
+                attributed[attrRange].backgroundColor = .yellow.opacity(0.35)
+                attributed[attrRange].foregroundColor = viewModel.isNightMode ? .white : .black
+            }
         }
 
         return attributed

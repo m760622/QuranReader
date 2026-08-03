@@ -45,9 +45,12 @@ public struct DBSearchIndex: Codable, FetchableRecord, PersistableRecord, Sendab
     public var surahId: Int
     public var verseId: Int
     public var surahName: String
+    public var surahNameArabicBare: String?
     public var verseText: String
     public var verseTextArabicBare: String
     public var tafsirText: String?
+    public var tafsirTextArabicBare: String?
     public var englishText: String?
     public var swedishText: String?
 }
+
